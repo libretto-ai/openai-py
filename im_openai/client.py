@@ -1,5 +1,6 @@
 import os
 import time
+import uuid
 from contextlib import contextmanager
 
 import aiohttp
@@ -30,7 +31,7 @@ def send_event(
 
 
 @contextmanager
-def event_session(project_key: str, prompt_event_id: str):
+def event_session(project_key: str, prompt_event_id: str = None):
     """Context manager for sending an event to Imaginary Dev.
 
     Usage::
@@ -41,6 +42,8 @@ def event_session(project_key: str, prompt_event_id: str):
 
     """
     start = time.time()
+    if prompt_event_id is None:
+        prompt_event_id = str(uuid.uuid4())
     send_event(project_key, prompt_event_id)
 
     def complete_event(response):
