@@ -16,19 +16,14 @@ def patch_openai_class(cls, get_result: Callable):
     oldcreate = cls.create
 
     def local_create(
-        cls,
-        *args,
-        ip_project_key=None,
-        ip_prompt_event_id=None,
-        ip_template_id=None,
-        **kwargs
+        cls, *args, ip_project_key=None, ip_event_id=None, ip_template_id=None, **kwargs
     ):
         if ip_project_key is None:
             ip_project_key = os.environ.get("PROMPT_PROJECT_KEY")
         if ip_project_key is None:
             return oldcreate(*args, **kwargs)
 
-        with event_session(ip_project_key, ip_prompt_event_id) as complete_event:
+        with event_session(ip_project_key, ip_event_id) as complete_event:
             response = oldcreate(*args, **kwargs)
             complete_event(get_result(response))
         return response

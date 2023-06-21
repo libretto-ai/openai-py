@@ -14,7 +14,7 @@ from langchain.llms import OpenAI, OpenAIChat
 llm = OpenAI(
     openai_api_key=os.environ["OPENAI_API_KEY"],
     verbose=True,
-    model_kwargs={"ip_prompt_event_id": str(uuid.uuid4())},
+    model_kwargs={"ip_prompt_project_key": "alecf-local-playground"},
 )
 
 socks = llm.predict(
@@ -27,7 +27,7 @@ llm2 = OpenAIChat(openai_api_key=os.environ["OPENAI_API_KEY"], verbose=True)
 
 socks2 = llm2.predict(
     "What would be a good company name for a company that makes colorful socks?",
-    ip_prompt_event_id=str(uuid.uuid4()),
+    ip_event_id=str(uuid.uuid4()),
 )
 
 print("socks2 = ", socks2)
