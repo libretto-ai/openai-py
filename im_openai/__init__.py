@@ -4,12 +4,15 @@ __author__ = """Alec Flett"""
 __email__ = "alec@thegp.com"
 __version__ = "0.1.0"
 
-from openai import ChatCompletion, Completion
-from .client import event_session
 import os
+from typing import Callable
+
+from openai import ChatCompletion, Completion
+
+from .client import event_session
 
 
-def patch_openai_class(cls):
+def patch_openai_class(cls, get_result: Callable):
     oldcreate = cls.create
 
     def local_create(
@@ -27,7 +30,7 @@ def patch_openai_class(cls):
 
         with event_session(ip_project_key, ip_prompt_event_id) as complete_event:
             response = oldcreate(*args, **kwargs)
-            complete_event(response)
+            complete_event(get_result(response))
         return response
 
     oldacreate = cls.acreate
@@ -58,8 +61,10 @@ def patch_openai():
     """Patch openai APIs to add logging capabilities.
 
     Returns a function which may be called to "unpatch" the APIs."""
-    unpatch_chat = patch_openai_class(ChatCompletion)
-    unpatch_completion = patch_openai_class(Completion)
+    unpatch_chat = patch_openai_class(Completion, lambda x: x["choices"][0]["text"])
+    unpatch_completion = patch_openai_class(
+        ChatCompletion, lambda x: x["choices"][0]["message"]["content"]
+    )
 
     def unpatch():
         unpatch_chat()
