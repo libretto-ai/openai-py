@@ -3,7 +3,6 @@ import time
 import uuid
 from contextlib import contextmanager
 
-import aiohttp
 import requests
 
 

@@ -3,7 +3,6 @@ import os
 import sys
 import uuid
 
-print("path = ", __file__)
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 import im_openai
 

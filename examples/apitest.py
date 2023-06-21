@@ -1,7 +1,12 @@
 #!/usr/bin/env python
+import os
+import sys
+
+import openai
+
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 import im_openai
-import openai
 
 
 def main():
@@ -9,7 +14,7 @@ def main():
     chat_completion = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         messages=[{"role": "user", "content": "Hello world"}],
-        template="xyz",
+        ip_project_key="alecf-local-playground",
     )
     print(chat_completion)
 
