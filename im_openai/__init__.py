@@ -7,8 +7,14 @@ __version__ = '0.1.0'
 from openai import ChatCompletion as OldChatCompletion, Completion as OldCompletion
 
 class ChatCompletion(OldChatCompletion):
-    pass
+    def __init__(self, *args, template=None, **kwargs):
+        """ChatCompletion wrapper that allows for a template to be passed in"""
+        super().__init__(*args, **kwargs)
+        self.template = template
 
 class Completion(OldCompletion):
-    pass
+    """Completion wrapper that allows for a template to be passed in"""
+    def __init__(self, *args, template=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.template = template
 
