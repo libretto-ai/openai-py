@@ -1,10 +1,14 @@
-import requests
-import aiohttp
-from contextlib import contextmanager
 import os
+import time
+from contextlib import contextmanager
+
+import aiohttp
+import requests
 
 
-def send_event(project_key: str, prompt_event_id: str, response=None):
+def send_event(
+    project_key: str, prompt_event_id: str, response=None, response_time: float = None
+):
     PROMPT_REPORTING_URL = os.environ.get(
         "PROMPT_REPORTING_URL", "https://app.imaginary.dev/api/event"
     )
@@ -16,6 +20,11 @@ def send_event(project_key: str, prompt_event_id: str, response=None):
         "projectKey": project_key,
         "promptEventId": prompt_event_id,
     }
+    if response is not None:
+        event["response"] = response
+    if response_time is not None:
+        event["responseTime"] = response_time
+
     response = requests.post(PROMPT_REPORTING_URL, json=event)
     response.raise_for_status()
 
@@ -31,9 +40,11 @@ def event_session(project_key: str, prompt_event_id: str):
             complete_event(response)
 
     """
+    start = time.time()
     send_event(project_key, prompt_event_id)
 
     def complete_event(response):
-        send_event(project_key, prompt_event_id, response)
+        response_time = (time.time() - start) * 1000
+        send_event(project_key, prompt_event_id, response, response_time)
 
     yield complete_event

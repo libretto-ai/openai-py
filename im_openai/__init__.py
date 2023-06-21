@@ -13,7 +13,12 @@ def patch_openai_class(cls):
     oldcreate = cls.create
 
     def local_create(
-        cls, *args, ip_project_key=None, ip_prompt_event_id=None, **kwargs
+        cls,
+        *args,
+        ip_project_key=None,
+        ip_prompt_event_id=None,
+        ip_template_id=None,
+        **kwargs
     ):
         if ip_project_key is None:
             ip_project_key = os.environ.get("PROMPT_PROJECT_KEY")
