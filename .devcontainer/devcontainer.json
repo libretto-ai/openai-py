@@ -8,7 +8,8 @@
 	"features": {
 		"ghcr.io/devcontainers/features/github-cli:1": {
 			"version": "2.30.0"
-		}
+		},
+		"ghcr.io/jungaretti/features/ripgrep:1": {}
 	}
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
