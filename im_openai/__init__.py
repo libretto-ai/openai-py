@@ -5,14 +5,25 @@ __email__ = "alec@thegp.com"
 __version__ = "0.1.0"
 
 from openai import ChatCompletion, Completion
+from .client import event_session
+import os
 
 
 def patch_openai_class(cls):
     oldcreate = cls.create
 
-    def local_create(cls, *args, template=None, **kwargs):
-        # TODO: record the request and response with the template
-        return oldcreate(*args, **kwargs)
+    def local_create(
+        cls, *args, ip_project_key=None, ip_prompt_event_id=None, **kwargs
+    ):
+        if ip_project_key is None:
+            ip_project_key = os.environ.get("PROMPT_PROJECT_KEY")
+        if ip_project_key is None:
+            return oldcreate(*args, **kwargs)
+
+        with event_session(ip_project_key, ip_prompt_event_id) as complete_event:
+            response = oldcreate(*args, **kwargs)
+            complete_event(response)
+        return response
 
     oldacreate = cls.acreate
 
