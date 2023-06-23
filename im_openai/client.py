@@ -7,19 +7,27 @@ import requests
 
 
 def send_event(
-    project_key: str, prompt_event_id: str, response=None, response_time: float = None
+    project_key: str,
+    prompt_event_id: str,
+    prompt_text: str = None,
+    response: str = None,
+    response_time: float = None,
 ):
     PROMPT_REPORTING_URL = os.environ.get(
         "PROMPT_REPORTING_URL", "https://app.imaginary.dev/api/event"
     )
     event = {
         "params": {},
-        "prompt": {
-            # funcName, funcComment, parameterTypes, returnSchema, isImaginary, serviceParameters
-        },
+        "prompt": {},
         "projectKey": project_key,
         "promptEventId": prompt_event_id,
     }
+    if prompt_text is not None:
+        event["prompt"]["text"] = prompt_text
+        if hasattr(prompt_text, "params"):
+            # Can be TemplateString or any other
+            event["params"] = prompt_text.params
+
     if response is not None:
         event["response"] = response
     if response_time is not None:
