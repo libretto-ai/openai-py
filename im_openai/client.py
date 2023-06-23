@@ -23,10 +23,14 @@ def send_event(
         "promptEventId": prompt_event_id,
     }
     if prompt_text is not None:
-        event["prompt"]["text"] = prompt_text
-        if hasattr(prompt_text, "params"):
+        event["prompt"]["prompt_text"] = prompt_text
+        if getattr(prompt_text, "params", None):
             # Can be TemplateString or any other
             event["params"] = prompt_text.params
+
+        # If the original template is available, send it too
+        if getattr(prompt_text, "template", None):
+            event["prompt"]["template"] = prompt_text.template
 
     if response is not None:
         event["response"] = response

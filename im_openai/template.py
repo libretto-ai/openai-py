@@ -9,4 +9,5 @@ class TemplateString(str):
         # make this behave like UserString so we have direct access to the original string
         instance.data = string
         instance.params = {}
+        instance.template = None
         return instance
