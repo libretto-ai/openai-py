@@ -39,7 +39,7 @@ setup(
     packages=find_packages(include=['im_openai', 'im_openai.*']),
     test_suite='tests',
     tests_require=test_requirements,
-    url='https://github.com/alecf/im_openai',
-    version='0.1.0',
+    url="https://github.com/alecf/im_openai",
+    version="0.1.1",
     zip_safe=False,
 )
