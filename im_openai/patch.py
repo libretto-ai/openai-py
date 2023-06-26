@@ -6,18 +6,26 @@ from openai import ChatCompletion, Completion
 from .client import event_session
 
 
-def patch_openai_class(cls, get_result: Callable):
+def patch_openai_class(cls, get_prompt_text: Callable, get_result: Callable):
     oldcreate = cls.create
 
     def local_create(
-        cls, *args, ip_project_key=None, ip_event_id=None, ip_template_id=None, **kwargs
+        cls,
+        *args,
+        ip_project_key=None,
+        ip_event_id=None,
+        ip_prompt_template_text=None,
+        **kwargs
     ):
         if ip_project_key is None:
             ip_project_key = os.environ.get("PROMPT_PROJECT_KEY")
         if ip_project_key is None:
             return oldcreate(*args, **kwargs)
-
-        with event_session(ip_project_key, ip_event_id) as complete_event:
+        if ip_prompt_template_text is None:
+            ip_prompt_template_text = get_prompt_text(*args, **kwargs)
+        with event_session(
+            ip_project_key, ip_prompt_template_text, ip_event_id
+        ) as complete_event:
             response = oldcreate(*args, **kwargs)
             complete_event(get_result(response))
         return response
@@ -50,9 +58,23 @@ def patch_openai():
     """Patch openai APIs to add logging capabilities.
 
     Returns a function which may be called to "unpatch" the APIs."""
-    unpatch_chat = patch_openai_class(Completion, lambda x: x["choices"][0]["text"])
+
+    def get_completion_prompt_text(*args, prompt=None, **kwargs):
+        return prompt
+
     unpatch_completion = patch_openai_class(
-        ChatCompletion, lambda x: x["choices"][0]["message"]["content"]
+        Completion, get_completion_prompt_text, lambda x: x["choices"][0]["text"]
+    )
+
+    def get_chat_prompt_text(*args, messages=None, **kwargs):
+        # TODO: What should we be sending? For now we'll just send the last message
+        prompt_text = messages[-1]["content"]
+        return prompt_text
+
+    unpatch_chat = patch_openai_class(
+        ChatCompletion,
+        get_chat_prompt_text,
+        lambda x: x["choices"][0]["message"]["content"],
     )
 
     def unpatch():

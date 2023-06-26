@@ -9,7 +9,7 @@ import requests
 def send_event(
     project_key: str,
     prompt_event_id: str,
-    prompt_text: str = None,
+    prompt_text: str,
     response: str = None,
     response_time: float = None,
 ):
@@ -23,14 +23,17 @@ def send_event(
         "promptEventId": prompt_event_id,
     }
     if prompt_text is not None:
-        event["prompt"]["prompt_text"] = prompt_text
+        # first default template to just the raw text
+        event["promptTemplateText"] = prompt_text
+
+        #
         if getattr(prompt_text, "params", None):
             # Can be TemplateString or any other
             event["params"] = prompt_text.params
 
         # If the original template is available, send it too
         if getattr(prompt_text, "template", None):
-            event["prompt"]["template"] = prompt_text.template
+            event["promptTemplateText"] = prompt_text.template
 
     if response is not None:
         event["response"] = response
@@ -42,12 +45,16 @@ def send_event(
 
 
 @contextmanager
-def event_session(project_key: str, prompt_event_id: str = None):
+def event_session(
+    project_key: str,
+    prompt_text: str,
+    prompt_event_id: str = None,
+):
     """Context manager for sending an event to Imaginary Dev.
 
     Usage::
 
-        with event_session(project_key, prompt_event_id) as complete_event:
+        with event_session(project_key, prompt_text, prompt_event_id) as complete_event:
             # do something
             complete_event(response)
 
@@ -55,10 +62,10 @@ def event_session(project_key: str, prompt_event_id: str = None):
     start = time.time()
     if prompt_event_id is None:
         prompt_event_id = str(uuid.uuid4())
-    send_event(project_key, prompt_event_id)
+    send_event(project_key, prompt_event_id, prompt_text)
 
     def complete_event(response):
         response_time = (time.time() - start) * 1000
-        send_event(project_key, prompt_event_id, response, response_time)
+        send_event(project_key, prompt_event_id, prompt_text, response, response_time)
 
     yield complete_event
