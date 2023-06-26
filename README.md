@@ -45,7 +45,7 @@ If you're using langchain, you can set the ip_project_key in the langchain llm s
 ```python
 llm = OpenAI(
     openai_api_key=os.environ["OPENAI_API_KEY"],
-    model_kwargs={"ip_prompt_project_key": "my_project_key"},
+    model_kwargs={"ip_project_key": "my_project_key"},
 )
 ```
 

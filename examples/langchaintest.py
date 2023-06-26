@@ -13,7 +13,7 @@ from langchain.llms import OpenAI, OpenAIChat
 llm = OpenAI(
     openai_api_key=os.environ["OPENAI_API_KEY"],
     verbose=True,
-    model_kwargs={"ip_prompt_project_key": "alecf-local-playground"},
+    model_kwargs={"ip_project_key": "alecf-local-playground"},
 )
 
 socks = llm.predict(
