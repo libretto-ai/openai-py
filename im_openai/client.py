@@ -44,7 +44,6 @@ def send_event(
     if response_time is not None:
         event["responseTime"] = response_time
 
-    print("SENDING: ", event)
     response = requests.post(PROMPT_REPORTING_URL, json=event)
     response.raise_for_status()
 
