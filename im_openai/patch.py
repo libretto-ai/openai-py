@@ -13,18 +13,25 @@ def patch_openai_class(cls, get_prompt_text: Callable, get_result: Callable):
         cls,
         *args,
         ip_project_key=None,
+        ip_api_name=None,
         ip_event_id=None,
-        ip_prompt_template_text=None,
+        ip_template_text=None,
+        ip_template_params=None,
         **kwargs
     ):
         if ip_project_key is None:
             ip_project_key = os.environ.get("PROMPT_PROJECT_KEY")
         if ip_project_key is None:
             return oldcreate(*args, **kwargs)
-        if ip_prompt_template_text is None:
-            ip_prompt_template_text = get_prompt_text(*args, **kwargs)
+        if ip_template_text is None:
+            ip_template_text = get_prompt_text(*args, **kwargs)
+
         with event_session(
-            ip_project_key, ip_prompt_template_text, ip_event_id
+            ip_project_key,
+            ip_api_name,
+            ip_template_text,
+            ip_template_params,
+            ip_event_id,
         ) as complete_event:
             response = oldcreate(*args, **kwargs)
             complete_event(get_result(response))
