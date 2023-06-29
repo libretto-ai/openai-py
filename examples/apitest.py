@@ -14,13 +14,16 @@ def main():
     unpatch = im_openai.patch_openai()
     template = "Send a greeting to our new user named {name}"
     ip_template_params = {"name": "Alec"}
-    prompt = template.format(**ip_template_params)
+    prompt_text = template.format(**ip_template_params)
+
+    chat_messages = [{"role": "user", "content": prompt_text}]
+    chat_template = [{"role": "user", "content": template}]
     chat_completion = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
-        messages=[{"role": "user", "content": prompt}],
+        messages=chat_messages,
         ip_project_key="alecf-local-playground",
-        ip_api_name='test-from-apitest-chat',
-        ip_template_text=template,
+        ip_api_name="test-from-apitest-chat",
+        ip_template_chat=chat_template,
         ip_template_params=ip_template_params,
     )
     print(chat_completion)
@@ -28,9 +31,9 @@ def main():
     print("TESTING COMPLETION API")
     completion = openai.Completion.create(
         model="text-davinci-003",
-        prompt="Hello world",
+        prompt=prompt_text,
         ip_project_key="alecf-local-playground",
-        ip_api_name='test-from-apitest-completion',
+        ip_api_name="test-from-apitest-completion",
         ip_template_text=template,
         ip_template_params=ip_template_params,
     )

@@ -6,7 +6,7 @@ from openai import ChatCompletion, Completion
 from .client import event_session
 
 
-def patch_openai_class(cls, get_prompt_text: Callable, get_result: Callable):
+def patch_openai_class(cls, get_prompt_template: Callable, get_result: Callable):
     oldcreate = cls.create
 
     def local_create(
@@ -16,6 +16,7 @@ def patch_openai_class(cls, get_prompt_text: Callable, get_result: Callable):
         ip_api_name=None,
         ip_event_id=None,
         ip_template_text=None,
+        ip_template_chat=None,
         ip_template_params=None,
         **kwargs
     ):
@@ -23,13 +24,19 @@ def patch_openai_class(cls, get_prompt_text: Callable, get_result: Callable):
             ip_project_key = os.environ.get("PROMPT_PROJECT_KEY")
         if ip_project_key is None:
             return oldcreate(*args, **kwargs)
-        if ip_template_text is None:
-            ip_template_text = get_prompt_text(*args, **kwargs)
+
+        if ip_template_text is None and ip_template_chat is None:
+            ip_template = get_prompt_template(*args, **kwargs)
+            if isinstance(ip_template, str):
+                ip_template_text = ip_template
+            elif isinstance(ip_template, list):
+                ip_template_chat = ip_template
 
         with event_session(
             ip_project_key,
             ip_api_name,
             ip_template_text,
+            ip_template_chat,
             ip_template_params,
             ip_event_id,
         ) as complete_event:
@@ -66,21 +73,21 @@ def patch_openai():
 
     Returns a function which may be called to "unpatch" the APIs."""
 
-    def get_completion_prompt_text(*args, prompt=None, **kwargs):
+    def get_completion_prompt(*args, prompt=None, **kwargs):
         return prompt
 
     unpatch_completion = patch_openai_class(
-        Completion, get_completion_prompt_text, lambda x: x["choices"][0]["text"]
+        Completion, get_completion_prompt, lambda x: x["choices"][0]["text"]
     )
 
-    def get_chat_prompt_text(*args, messages=None, **kwargs):
+    def get_chat_prompt(*args, messages=None, **kwargs):
         # TODO: What should we be sending? For now we'll just send the last message
-        prompt_text = messages[-1]["content"]
+        prompt_text = messages
         return prompt_text
 
     unpatch_chat = patch_openai_class(
         ChatCompletion,
-        get_chat_prompt_text,
+        get_chat_prompt,
         lambda x: x["choices"][0]["message"]["content"],
     )
 
