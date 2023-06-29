@@ -19,3 +19,7 @@
 ## 0.3.0 (2023-06-28)
 
 - add support for chat templates (as objects instead of arrays)
+
+## 0.4.0 (2023-06-29)
+
+- switch event reporting to be async / non-blocking
