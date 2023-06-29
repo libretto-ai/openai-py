@@ -3,5 +3,6 @@
         "editor.defaultFormatter": "ms-python.black-formatter",
         "editor.formatOnSave": true
     },
-    "python.formatting.provider": "black"
+    "python.formatting.provider": "black",
+    "python.analysis.typeCheckingMode": "basic"
 }
