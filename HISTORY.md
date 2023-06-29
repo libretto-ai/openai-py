@@ -15,3 +15,7 @@
 ## 0.2.0 (2023-06-26)
 
 - add explicit support for passing the "prompt template text"
+
+## 0.3.0 (2023-06-28)
+
+- add support for chat templates (as objects instead of arrays)
