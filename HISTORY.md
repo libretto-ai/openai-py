@@ -23,3 +23,12 @@
 ## 0.4.0 (2023-06-29)
 
 - switch event reporting to be async / non-blocking
+
+## 0.4.1 (2023-06-29)
+
+- add utility for formatting langchain messages
+
+## 0.4.2 (2023-06-29)
+
+- remove stray breakpoint
+

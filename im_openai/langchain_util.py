@@ -47,9 +47,7 @@ def _convert_message_to_dicts(
         vars = message.input_variables
         # create a fake dictionary mapping name -> '{name}'
         vars_as_templates = {v: f"{{{v}}}" for v in vars}
-        breakpoint()
         formatted_messages = message.format_messages(**vars_as_templates)
         return format_chat_template(formatted_messages)
     else:
-        breakpoint()
         raise ValueError(f"Got unknown type {message}")
