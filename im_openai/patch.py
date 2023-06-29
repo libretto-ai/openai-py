@@ -4,12 +4,13 @@ from typing import Callable
 from openai import ChatCompletion, Completion
 
 from .client import event_session
+import asyncio
 
 
 def patch_openai_class(cls, get_prompt_template: Callable, get_result: Callable):
     oldcreate = cls.create
 
-    def local_create(
+    async def local_create(
         cls,
         *args,
         ip_project_key=None,
@@ -32,7 +33,7 @@ def patch_openai_class(cls, get_prompt_template: Callable, get_result: Callable)
             elif isinstance(ip_template, list):
                 ip_template_chat = ip_template
 
-        with event_session(
+        async with event_session(
             ip_project_key,
             ip_api_name,
             ip_template_text,
@@ -41,7 +42,7 @@ def patch_openai_class(cls, get_prompt_template: Callable, get_result: Callable)
             ip_event_id,
         ) as complete_event:
             response = oldcreate(*args, **kwargs)
-            complete_event(get_result(response))
+            await complete_event(get_result(response))
         return response
 
     oldacreate = cls.acreate
@@ -53,7 +54,9 @@ def patch_openai_class(cls, get_prompt_template: Callable, get_result: Callable)
     setattr(
         cls,
         "create",
-        classmethod(lambda cls, *args, **kwds: local_create(cls, *args, **kwds)),
+        classmethod(
+            lambda cls, *args, **kwds: asyncio.run(local_create(cls, *args, **kwds))
+        ),
     )
     setattr(
         cls,

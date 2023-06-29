@@ -1,12 +1,15 @@
 import os
 import time
 import uuid
-from contextlib import contextmanager
-from typing import Union, List
-import requests
+from contextlib import asynccontextmanager
+from typing import List
+import asyncio
+import aiohttp
+import warnings
 
 
-def send_event(
+async def send_event(
+    session: aiohttp.ClientSession,
     project_key: str,
     api_name: str,
     prompt_event_id: str,
@@ -52,12 +55,11 @@ def send_event(
     if response_time is not None:
         event["responseTime"] = response_time
 
-    event_response = requests.post(PROMPT_REPORTING_URL, json=event)
-    event_response.raise_for_status()
+    await session.post(PROMPT_REPORTING_URL, json=event)
 
 
-@contextmanager
-def event_session(
+@asynccontextmanager
+async def event_session(
     project_key: str,
     api_name: str,
     prompt_template_text: str,
@@ -77,26 +79,43 @@ def event_session(
     start = time.time()
     if prompt_event_id is None:
         prompt_event_id = str(uuid.uuid4())
-    send_event(
-        project_key,
-        api_name,
-        prompt_event_id,
-        prompt_template_text,
-        prompt_template_chat,
-        prompt_template_params,
-    )
 
-    def complete_event(response):
-        response_time = (time.time() - start) * 1000
-        send_event(
+    async with aiohttp.ClientSession() as session:
+        pending_events_sent = []
+        first_event_sent = send_event(
+            session,
             project_key,
             api_name,
             prompt_event_id,
             prompt_template_text,
             prompt_template_chat,
             prompt_template_params,
-            response,
-            response_time,
         )
+        pending_events_sent.append(first_event_sent)
 
-    yield complete_event
+        async def complete_event(response):
+            response_time = (time.time() - start) * 1000
+            second_event_sent = send_event(
+                session,
+                project_key,
+                api_name,
+                prompt_event_id,
+                prompt_template_text,
+                prompt_template_chat,
+                prompt_template_params,
+                response,
+                response_time,
+            )
+            pending_events_sent.append(second_event_sent)
+
+        yield complete_event
+        w = time.time()
+        pending_events_results = await asyncio.gather(
+            *pending_events_sent, return_exceptions=True
+        )
+        failed_events = [e for e in pending_events_results if isinstance(e, Exception)]
+        if failed_events:
+            warnings.warn(
+                f"Failed to report calls. {len(failed_events)} failure(s). First failure: {failed_events[0]}",
+                stacklevel=3,
+            )
