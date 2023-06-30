@@ -4,7 +4,7 @@ import time
 import uuid
 import warnings
 from contextlib import asynccontextmanager
-from typing import Dict, List
+from typing import Dict, List, TypedDict
 
 import aiohttp
 
@@ -16,7 +16,8 @@ async def send_event(
     prompt_event_id: str | None,
     prompt_template_text: str | None,
     prompt_template_chat: List | None,
-    prompt_params: Dict | None = None,
+    prompt_params: Dict | None,
+    chat_id: str | None,
     response: str | None = None,
     response_time: float | None = None,
 ):
@@ -48,11 +49,14 @@ async def send_event(
 
         # Do any langchain conversion, in case there are langchain objects inside
         try:
+            print("Trying langchain")
             # import will fail if langchain is not installed
             from .langchain_util import format_chat_template
 
+            print("Success: Converting lanchgain template")
             prompt_template_chat = format_chat_template(prompt_template_chat)
         except ImportError:
+            print("No langchain available")
             pass
         # TODO: figure out template extraction for chat templates
         event["promptTemplateChat"] = prompt_template_chat
@@ -63,6 +67,8 @@ async def send_event(
         event["response"] = response
     if response_time is not None:
         event["responseTime"] = response_time
+    if chat_id is not None:
+        event["chatId"] = chat_id
 
     await session.post(PROMPT_REPORTING_URL, json=event)
 
@@ -73,6 +79,7 @@ async def event_session(
     api_name: str | None,
     prompt_template_text: str | None,
     prompt_template_chat: List | None,
+    chat_id: str | None = None,
     prompt_template_params: dict | None = None,
     prompt_event_id: str | None = None,
 ):
@@ -92,28 +99,30 @@ async def event_session(
     async with aiohttp.ClientSession() as session:
         pending_events_sent = []
         first_event_sent = send_event(
-            session,
-            project_key,
-            api_name,
-            prompt_event_id,
-            prompt_template_text,
-            prompt_template_chat,
-            prompt_template_params,
+            session=session,
+            project_key=project_key,
+            api_name=api_name,
+            prompt_event_id=prompt_event_id,
+            prompt_template_text=prompt_template_text,
+            prompt_template_chat=prompt_template_chat,
+            prompt_params=prompt_template_params,
+            chat_id=chat_id,
         )
         pending_events_sent.append(first_event_sent)
 
         async def complete_event(response):
             response_time = (time.time() - start) * 1000
             second_event_sent = send_event(
-                session,
-                project_key,
-                api_name,
-                prompt_event_id,
-                prompt_template_text,
-                prompt_template_chat,
-                prompt_template_params,
-                response,
-                response_time,
+                session=session,
+                project_key=project_key,
+                api_name=api_name,
+                prompt_event_id=prompt_event_id,
+                prompt_template_text=prompt_template_text,
+                prompt_template_chat=prompt_template_chat,
+                prompt_params=prompt_template_params,
+                chat_id=chat_id,
+                response=response,
+                response_time=response_time,
             )
             pending_events_sent.append(second_event_sent)
 

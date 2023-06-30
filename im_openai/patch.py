@@ -19,6 +19,7 @@ def patch_openai_class(cls, get_prompt_template: Callable, get_result: Callable)
         ip_template_text: str | None = None,
         ip_template_chat: List | None = None,
         ip_template_params=None,
+        ip_chat_id: str | None = None,
         **kwargs
     ):
         if ip_project_key is None:
@@ -34,12 +35,13 @@ def patch_openai_class(cls, get_prompt_template: Callable, get_result: Callable)
                 ip_template_chat = ip_template
 
         async with event_session(
-            ip_project_key,
-            ip_api_name,
-            ip_template_text,
-            ip_template_chat,
-            ip_template_params,
-            ip_event_id,
+            project_key=ip_project_key,
+            api_name=ip_api_name,
+            prompt_template_text=ip_template_text,
+            prompt_template_chat=ip_template_chat,
+            chat_id=ip_chat_id,
+            prompt_template_params=ip_template_params,
+            prompt_event_id=ip_event_id,
         ) as complete_event:
             response = oldcreate(*args, **kwargs)
             await complete_event(get_result(response))
