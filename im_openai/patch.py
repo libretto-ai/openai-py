@@ -1,10 +1,10 @@
+import asyncio
 import os
-from typing import Callable
+from typing import Callable, List
 
 from openai import ChatCompletion, Completion
 
 from .client import event_session
-import asyncio
 
 
 def patch_openai_class(cls, get_prompt_template: Callable, get_result: Callable):
@@ -14,10 +14,10 @@ def patch_openai_class(cls, get_prompt_template: Callable, get_result: Callable)
         cls,
         *args,
         ip_project_key=None,
-        ip_api_name=None,
-        ip_event_id=None,
-        ip_template_text=None,
-        ip_template_chat=None,
+        ip_api_name: str | None = None,
+        ip_event_id: str | None = None,
+        ip_template_text: str | None = None,
+        ip_template_chat: List | None = None,
         ip_template_params=None,
         **kwargs
     ):

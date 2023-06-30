@@ -4,7 +4,7 @@ import time
 import uuid
 import warnings
 from contextlib import asynccontextmanager
-from typing import List
+from typing import Dict, List
 
 import aiohttp
 
@@ -12,11 +12,11 @@ import aiohttp
 async def send_event(
     session: aiohttp.ClientSession,
     project_key: str,
-    api_name: str,
-    prompt_event_id: str,
-    prompt_template_text: str,
-    prompt_template_chat: List,
-    prompt_params: dict | None = None,
+    api_name: str | None,
+    prompt_event_id: str | None,
+    prompt_template_text: str | None,
+    prompt_template_chat: List | None,
+    prompt_params: Dict | None = None,
     response: str | None = None,
     response_time: float | None = None,
 ):
@@ -70,9 +70,9 @@ async def send_event(
 @asynccontextmanager
 async def event_session(
     project_key: str,
-    api_name: str,
-    prompt_template_text: str,
-    prompt_template_chat: List,
+    api_name: str | None,
+    prompt_template_text: str | None,
+    prompt_template_chat: List | None,
     prompt_template_params: dict | None = None,
     prompt_event_id: str | None = None,
 ):
