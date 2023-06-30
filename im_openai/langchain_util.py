@@ -49,5 +49,7 @@ def _convert_message_to_dicts(
         vars_as_templates = {v: f"{{{v}}}" for v in vars}
         formatted_messages = message.format_messages(**vars_as_templates)
         return format_chat_template(formatted_messages)
+    elif isinstance(message, dict):
+        return [message]
     else:
         raise ValueError(f"Got unknown type {message}")

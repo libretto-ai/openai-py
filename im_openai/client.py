@@ -35,16 +35,24 @@ async def send_event(
             event["promptTemplateText"] = prompt_template_text
             if prompt_params is None and getattr(prompt_template_text, "params", None):
                 # Can be TemplateString or any other
-                prompt_params = prompt_template_text.params
+                prompt_params = prompt_template_text.params  # type: ignore
 
             # If the original template is available, send it too
             if getattr(prompt_template_text, "template", None):
-                event["promptTemplateText"] = prompt_template_text.template
+                event["promptTemplateText"] = prompt_template_text.template  # type: ignore
 
     elif prompt_template_chat is not None:
         # We're going to assume that if a non-string was passed in, then it
         # was probably a chat template, aka a chat message history
 
+        # Do any langchain conversion, in case there are langchain objects inside
+        try:
+            # import will fail if langchain is not installed
+            from .langchain_util import format_chat_template
+
+            prompt_template_chat = format_chat_template(prompt_template_chat)
+        except ImportError:
+            pass
         # TODO: figure out template extraction for chat templates
         event["promptTemplateChat"] = prompt_template_chat
 
