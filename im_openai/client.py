@@ -1,11 +1,12 @@
+import asyncio
 import os
 import time
 import uuid
+import warnings
 from contextlib import asynccontextmanager
 from typing import List
-import asyncio
+
 import aiohttp
-import warnings
 
 
 async def send_event(
@@ -15,9 +16,9 @@ async def send_event(
     prompt_event_id: str,
     prompt_template_text: str,
     prompt_template_chat: List,
-    prompt_params: dict = None,
-    response: str = None,
-    response_time: float = None,
+    prompt_params: dict | None = None,
+    response: str | None = None,
+    response_time: float | None = None,
 ):
     PROMPT_REPORTING_URL = os.environ.get(
         "PROMPT_REPORTING_URL", "https://app.imaginary.dev/api/event"
@@ -72,8 +73,8 @@ async def event_session(
     api_name: str,
     prompt_template_text: str,
     prompt_template_chat: List,
-    prompt_template_params: dict = None,
-    prompt_event_id: str = None,
+    prompt_template_params: dict | None = None,
+    prompt_event_id: str | None = None,
 ):
     """Context manager for sending an event to Imaginary Dev.
 
