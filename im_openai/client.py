@@ -49,14 +49,11 @@ async def send_event(
 
         # Do any langchain conversion, in case there are langchain objects inside
         try:
-            print("Trying langchain")
             # import will fail if langchain is not installed
             from .langchain_util import format_chat_template
 
-            print("Success: Converting lanchgain template")
             prompt_template_chat = format_chat_template(prompt_template_chat)
         except ImportError:
-            print("No langchain available")
             pass
         # TODO: figure out template extraction for chat templates
         event["promptTemplateChat"] = prompt_template_chat

@@ -32,9 +32,14 @@
 
 - remove stray breakpoint
 
-## 0.4.2 (2023-06-30)
+## 0.4.3 (2023-06-30)
 
 - pass along chat_id
 - attempt to auto-convert langchain prompt templates
+
+## 0.4.4 (2023-06-30)
+
+- remove stray prints
+
 
 
