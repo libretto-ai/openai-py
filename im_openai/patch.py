@@ -27,6 +27,14 @@ def patch_openai_class(cls, get_prompt_template: Callable, get_result: Callable)
         if ip_project_key is None:
             return oldcreate(*args, **kwargs)
 
+        if "messages" in kwargs:
+            print("Found some messages")
+            template_params = {}
+            for message in kwargs["messages"]:
+                if hasattr(message["content"], "template_args"):
+                    template_params.update(message["content"].template_args)
+            ip_template_params = template_params
+
         if ip_template_text is None and ip_template_chat is None:
             ip_template = get_prompt_template(*args, **kwargs)
             if isinstance(ip_template, str):
