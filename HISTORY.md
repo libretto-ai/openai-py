@@ -41,5 +41,10 @@
 
 - remove stray prints
 
+## 0.5.0 (2023-07-06)
+
+- Add langchain callbacks handlers
+
+
 
 
