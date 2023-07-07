@@ -71,7 +71,6 @@ def _convert_message_to_dicts(
     elif isinstance(message, dict):
         return [message]
     else:
-        breakpoint()
         raise ValueError(f"Got unknown type {type(message)}: {message}")
 
 
@@ -119,7 +118,6 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         **kwargs: Any,
     ):
         run = self.runs.get(run_id)
-        breakpoint()
         if not run:
             return
         run["prompts"] = prompts
@@ -144,7 +142,6 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         **kwargs,
     ):
         run = self.runs.get(run_id) or self.runs.get(parent_run_id)
-        breakpoint()
         if not run:
             return
         run["messages"] = messages
@@ -162,7 +159,6 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         **kwargs: Any,
     ):
         run = self.runs.get(run_id) or (parent_run_id and self.runs.get(parent_run_id))
-        breakpoint()
         if not run:
             return
         now = time.time()
