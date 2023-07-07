@@ -100,8 +100,17 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             self.template_chat = format_chat_template(template_chat)
 
     def on_chain_start(
-        self, serialized, inputs, *a, run_id, parent_run_id, tags, metadata, **kwargs
+        self,
+        serialized,
+        inputs,
+        *a,
+        run_id,
+        parent_run_id,
+        tags,
+        metadata=None,
+        **kwargs,
     ):
+        logger.info("on_chain_start %s [%s]", run_id, ", ".join(inputs.keys()))
         self.runs[run_id] = {
             "inputs": inputs,
             "parent_run_id": parent_run_id,
@@ -117,6 +126,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         tags: Optional[List[str]] = None,
         **kwargs: Any,
     ):
+        logger.info("on_llm_start %s (%s prompts)", run_id, len(prompts))
         run = self.runs.get(run_id)
         if not run:
             return
@@ -138,9 +148,10 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         run_id,
         parent_run_id,
         tags,
-        metadata,
+        metadata=None,
         **kwargs,
     ):
+        logger.info("on_chat_model_start %s (%s prompts)", run_id, len(messages))
         run = self.runs.get(run_id) or self.runs.get(parent_run_id)
         if not run:
             return
@@ -158,6 +169,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         parent_run_id: Optional[UUID] = None,
         **kwargs: Any,
     ):
+        logger.info("on_llm_end %s (%s responses)", run_id, len(response.generations))
         run = self.runs.get(run_id) or (parent_run_id and self.runs.get(parent_run_id))
         if not run:
             return
@@ -198,6 +210,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         tags: Optional[List[str]] = None,
         **kwargs: Any,
     ):
+        logger.info("on_chain_end %s [%s]", run_id, ", ".join(outputs.keys()))
         if run_id in self.runs:
             del self.runs[run_id]
 
