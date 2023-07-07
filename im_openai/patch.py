@@ -28,7 +28,6 @@ def patch_openai_class(cls, get_prompt_template: Callable, get_result: Callable)
             return oldcreate(*args, **kwargs)
 
         if "messages" in kwargs:
-            print("Found some messages")
             template_params = {}
             for message in kwargs["messages"]:
                 if hasattr(message["content"], "template_args"):
