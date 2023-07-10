@@ -4,6 +4,7 @@ import asyncio
 import logging
 import os
 import time
+import uuid
 from itertools import zip_longest
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
@@ -12,6 +13,8 @@ import aiohttp
 from langchain.callbacks.base import BaseCallbackHandler
 from langchain.prompts.chat import BaseMessagePromptTemplate, MessagesPlaceholder
 from langchain.schema import (
+    AgentAction,
+    AgentFinish,
     AIMessage,
     BaseMessage,
     ChatMessage,
@@ -28,11 +31,13 @@ logger = logging.getLogger(__name__)
 def format_langchain_value(value: Any) -> Any:
     if isinstance(value, (str, bool, int, float)):
         return value
+    if isinstance(value, list):
+        return [format_langchain_value(v) for v in value]
     return format_chat_template(value)
 
 
 def format_chat_template(
-    messages: List[Union[BaseMessagePromptTemplate, BaseMessage]]
+    messages: List[Union[BaseMessagePromptTemplate, BaseMessage, List[Any]]]
 ) -> List[Dict]:
     """Format a chat template into something that Imaginary Programming can deal with"""
     lists = [_convert_message_to_dicts(message) for message in messages]
@@ -41,7 +46,7 @@ def format_chat_template(
 
 
 def _convert_message_to_dicts(
-    message: Union[BaseMessagePromptTemplate, BaseMessage]
+    message: Union[BaseMessagePromptTemplate, BaseMessage, List[Any]]
 ) -> List[dict]:
     if isinstance(message, ChatMessage):
         return [{"role": message.role, "content": message.content}]
@@ -78,7 +83,8 @@ class PromptWatchCallbacks(BaseCallbackHandler):
     runs: Dict[UUID, Dict[str, Any]] = {}
     project_key: str
     api_name: str
-    template_chat: List[Dict]
+    template_chat: List[Dict] | None
+    parent_run_ids: Dict[UUID, UUID] = {}
 
     def __init__(
         self,
@@ -96,8 +102,18 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         self.api_name = api_name
         if template_text is not None:
             self.template_text = template_text
-        if template_chat is not None:
+        elif template_chat is not None:
             self.template_chat = format_chat_template(template_chat)
+        else:
+            self.template_chat = None
+        self.parent_run_ids = {}
+
+    def _get_run(self, run_id):
+        if run_id in self.runs:
+            return self.runs[run_id]
+        if run_id in self.parent_run_ids:
+            return self._get_run(self.parent_run_ids[run_id])
+        return None
 
     def on_chain_start(
         self,
@@ -110,11 +126,52 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         metadata=None,
         **kwargs,
     ):
-        logger.info("on_chain_start %s [%s]", run_id, ", ".join(inputs.keys()))
+        if parent_run_id:
+            self.parent_run_ids[run_id] = parent_run_id
+        logger.info(
+            "on_chain_start      %s [%s]",
+            self._format_run_id(run_id),
+            ", ".join(inputs.keys()),
+        )
         self.runs[run_id] = {
             "inputs": inputs,
             "parent_run_id": parent_run_id,
+            "prompt_event_id": uuid.uuid4(),
         }
+
+    def on_agent_action(
+        self,
+        action: AgentAction,
+        *,
+        run_id: UUID,
+        parent_run_id: Optional[UUID] = None,
+        **kwargs: Any,
+    ) -> Any:
+        if parent_run_id:
+            self.parent_run_ids[run_id] = parent_run_id
+        logger.info(
+            "on_agent_action     %s %s",
+            self._format_run_id(run_id),
+            action.tool,
+        )
+        """Run on agent action."""
+
+    def on_agent_finish(
+        self,
+        finish: AgentFinish,
+        *,
+        run_id: UUID,
+        parent_run_id: Optional[UUID] = None,
+        **kwargs: Any,
+    ) -> Any:
+        """Run on agent end."""
+        if parent_run_id:
+            self.parent_run_ids[run_id] = parent_run_id
+        logger.info(
+            "on_agent_action     %s %s",
+            self._format_run_id(run_id),
+            finish.log,
+        )
 
     def on_llm_start(
         self,
@@ -126,9 +183,16 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         tags: Optional[List[str]] = None,
         **kwargs: Any,
     ):
-        logger.info("on_llm_start %s (%s prompts)", run_id, len(prompts))
-        run = self.runs.get(run_id)
+        if parent_run_id:
+            self.parent_run_ids[run_id] = parent_run_id
+        logger.info(
+            "on_llm_start %s (%s prompts)",
+            self._format_run_id(run_id),
+            len(prompts),
+        )
+        run = self._get_run(run_id)
         if not run:
+            logger.warning("on_llm_start Missing run %s", run_id)
             return
         run["prompts"] = prompts
         run["now"] = time.time()
@@ -151,8 +215,14 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         metadata=None,
         **kwargs,
     ):
-        logger.info("on_chat_model_start %s (%s prompts)", run_id, len(messages))
-        run = self.runs.get(run_id) or self.runs.get(parent_run_id)
+        if parent_run_id:
+            self.parent_run_ids[run_id] = parent_run_id
+        logger.info(
+            "on_chat_model_start %s (%s prompts)",
+            self._format_run_id(run_id),
+            len(messages),
+        )
+        run = self._get_run(run_id)
         if not run:
             return
         run["messages"] = messages
@@ -169,7 +239,13 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         parent_run_id: Optional[UUID] = None,
         **kwargs: Any,
     ):
-        logger.info("on_llm_end %s (%s responses)", run_id, len(response.generations))
+        if parent_run_id:
+            self.parent_run_ids[run_id] = parent_run_id
+        logger.info(
+            "on_llm_end          %s (%s responses)",
+            self._format_run_id(run_id),
+            len(response.generations),
+        )
         run = self.runs.get(run_id) or (parent_run_id and self.runs.get(parent_run_id))
         if not run:
             return
@@ -179,7 +255,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         if "messages" in run:
             asyncio.run(
                 self._async_send_chat(
-                    run_id,
+                    run["prompt_event_id"],
                     self.template_chat,
                     run["inputs"],
                     run["messages"],
@@ -190,7 +266,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         elif "prompts" in run:
             asyncio.run(
                 self._async_send_completion(
-                    run_id,
+                    run["prompt_event_id"],
                     self.template_text,
                     run["inputs"],
                     run["prompts"],
@@ -210,13 +286,19 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         tags: Optional[List[str]] = None,
         **kwargs: Any,
     ):
-        logger.info("on_chain_end %s [%s]", run_id, ", ".join(outputs.keys()))
+        if parent_run_id:
+            self.parent_run_ids[run_id] = parent_run_id
+        logger.info(
+            "on_chain_end %s [%s]",
+            self._format_run_id(run_id),
+            ", ".join(outputs.keys()),
+        )
         if run_id in self.runs:
             del self.runs[run_id]
 
     async def _async_send_completion(
         self,
-        run_id: UUID,
+        prompt_event_id: UUID,
         template_text: str,
         inputs: Dict,
         prompts: List[str],
@@ -232,6 +314,8 @@ class PromptWatchCallbacks(BaseCallbackHandler):
                 json_inputs = {
                     key: format_langchain_value(value) for key, value in inputs.items()
                 }
+                # If no template is passed in, pass in the completion prompt instead
+                prompt = {"completion": prompt} if not template_text else None
                 # TODO: gather these up and send them all at once
                 await send_event(
                     session,
@@ -240,7 +324,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
                     prompt_template_text=template_text,
                     prompt_template_chat=None,
                     prompt_params=json_inputs,
-                    prompt_event_id=str(run_id),
+                    prompt_event_id=str(prompt_event_id),
                     chat_id=None,
                     response=response_text,
                     response_time=response_time,
@@ -248,8 +332,8 @@ class PromptWatchCallbacks(BaseCallbackHandler):
 
     async def _async_send_chat(
         self,
-        run_id: UUID,
-        template_chats: List[Dict],
+        prompt_event_id: UUID,
+        template_chats: List[Dict] | None,
         inputs: Dict,
         messages_list: List[List[BaseMessage]],
         result: LLMResult | None = None,
@@ -264,6 +348,12 @@ class PromptWatchCallbacks(BaseCallbackHandler):
                 json_inputs = {
                     key: format_langchain_value(value) for key, value in inputs.items()
                 }
+                # If no template is passed in, pass in the prompt instead
+                prompt = (
+                    {"chat": format_chat_template(messages)}  # type: ignore
+                    if not template_chats
+                    else None
+                )
                 # TODO: gather these up and send them all at once
                 await send_event(
                     session,
@@ -272,8 +362,15 @@ class PromptWatchCallbacks(BaseCallbackHandler):
                     prompt_template_text=None,
                     prompt_template_chat=template_chats,
                     prompt_params=json_inputs,
-                    prompt_event_id=str(run_id),
+                    prompt_event_id=str(prompt_event_id),
                     chat_id=None,
                     response=response_text,
                     response_time=response_time,
+                    prompt=prompt,
                 )
+
+    def _format_run_id(self, run_id: UUID) -> str:
+        """Generates a hierarchy of run_ids by recursively walking self.parent_ids"""
+        if run_id in self.parent_run_ids:
+            return f"{self._format_run_id(self.parent_run_ids[run_id])} -> {run_id}"
+        return str(run_id)
