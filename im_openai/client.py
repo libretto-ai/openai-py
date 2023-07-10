@@ -4,7 +4,7 @@ import time
 import uuid
 import warnings
 from contextlib import asynccontextmanager
-from typing import Dict, List, TypedDict
+from typing import Any, Dict, List, TypedDict
 
 import aiohttp
 
@@ -20,6 +20,7 @@ async def send_event(
     chat_id: str | None,
     response: str | None = None,
     response_time: float | None = None,
+    prompt: Any | None = None,
 ):
     PROMPT_REPORTING_URL = os.environ.get(
         "PROMPT_REPORTING_URL", "https://app.imaginary.dev/api/event"
@@ -28,7 +29,7 @@ async def send_event(
         "projectKey": project_key,
         "apiName": api_name,
         "params": {},
-        "prompt": {},
+        "prompt": prompt or {},
         "promptEventId": prompt_event_id,
     }
     if prompt_template_text is not None:
