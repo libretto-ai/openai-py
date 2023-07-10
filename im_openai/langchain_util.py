@@ -193,7 +193,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         if parent_run_id:
             self.parent_run_ids[run_id] = parent_run_id
         logger.info(
-            "on_agent_action     %s %s",
+            "on_agent_finish    %s %s",
             self._format_run_id(run_id),
             finish.log,
         )
