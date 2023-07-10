@@ -45,6 +45,9 @@
 
 - Add langchain callbacks handlers
 
+## 0.6.0 (2023-07-10)
+
+- Handle duplicate callbacks, agents, etc
 
 
 

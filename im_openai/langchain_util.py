@@ -306,6 +306,17 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             logger.warning("Missing prompts or messages in run %s %s", run_id, run)
 
     @avoid_duplicate_call
+    def on_llm_error(
+        self,
+        error: Union[Exception, KeyboardInterrupt],
+        *,
+        run_id: UUID,
+        parent_run_id: Optional[UUID] = None,
+        **kwargs: Any,
+    ) -> Any:
+        """Run when LLM errors."""
+
+    @avoid_duplicate_call
     def on_chain_end(
         self,
         outputs: Dict[str, Any],
