@@ -277,7 +277,6 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             self._format_run_id(run_id),
             len(response.generations),
         )
-        breakpoint()
         run = self._get_run(run_id)
         if not run:
             return
@@ -285,7 +284,6 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         response_time = (now - run["now"]) * 1000
 
         if "messages" in run:
-            print("Sending messages")
             asyncio.run(
                 self._async_send_chat(
                     run["prompt_event_id"],
