@@ -55,6 +55,8 @@ def format_langchain_value(value: Any) -> Any:
         return value
     if isinstance(value, list):
         return [format_langchain_value(v) for v in value]
+    if isinstance(value, dict):
+        return {k: format_langchain_value(v) for k, v in value.items()}
     return format_chat_template(value)
 
 
@@ -98,6 +100,7 @@ def _convert_message_to_dicts(
     elif isinstance(message, dict):
         return [message]
     else:
+        breakpoint()
         raise ValueError(f"Got unknown type {type(message)}: {message}")
 
 
@@ -274,13 +277,15 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             self._format_run_id(run_id),
             len(response.generations),
         )
-        run = self.runs.get(run_id) or (parent_run_id and self.runs.get(parent_run_id))
+        breakpoint()
+        run = self._get_run(run_id)
         if not run:
             return
         now = time.time()
         response_time = (now - run["now"]) * 1000
 
         if "messages" in run:
+            print("Sending messages")
             asyncio.run(
                 self._async_send_chat(
                     run["prompt_event_id"],
@@ -292,6 +297,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
                 )
             )
         elif "prompts" in run:
+            print("Sending prompts")
             asyncio.run(
                 self._async_send_completion(
                     run["prompt_event_id"],
