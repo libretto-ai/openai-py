@@ -1,6 +1,7 @@
 # Utilities for dealing with langchain
 
 import asyncio
+import json
 import logging
 import os
 import time
@@ -11,7 +12,17 @@ from uuid import UUID
 
 import aiohttp
 from langchain.callbacks.base import BaseCallbackHandler
-from langchain.prompts.chat import BaseMessagePromptTemplate, MessagesPlaceholder
+from langchain.load.load import loads
+from langchain.prompts import (
+    BaseChatPromptTemplate,
+    StringPromptTemplate,
+    BasePromptTemplate,
+)
+from langchain.prompts.chat import (
+    BaseChatPromptTemplate,
+    BaseMessagePromptTemplate,
+    MessagesPlaceholder,
+)
 from langchain.schema import (
     AgentAction,
     AgentFinish,
@@ -57,11 +68,16 @@ def format_langchain_value(value: Any) -> Any:
         return [format_langchain_value(v) for v in value]
     if isinstance(value, dict):
         return {k: format_langchain_value(v) for k, v in value.items()}
+    if isinstance(value, StringPromptTemplate):
+        inputs = {k: f"{{{k}}}" for k in value.input_variables}
+        return value.format(**inputs)
     return format_chat_template(value)
 
 
 def format_chat_template(
-    messages: List[Union[BaseMessagePromptTemplate, BaseMessage, List[Any]]]
+    messages: List[
+        Union[BaseMessagePromptTemplate, BaseChatPromptTemplate, BaseMessage, List[Any]]
+    ]
 ) -> List[Dict]:
     """Format a chat template into something that Imaginary Programming can deal with"""
     lists = [_convert_message_to_dicts(message) for message in messages]
@@ -70,7 +86,9 @@ def format_chat_template(
 
 
 def _convert_message_to_dicts(
-    message: Union[BaseMessagePromptTemplate, BaseMessage, List[Any]]
+    message: Union[
+        BaseMessagePromptTemplate, BaseChatPromptTemplate, BaseMessage, List[Any]
+    ]
 ) -> List[dict]:
     if isinstance(message, ChatMessage):
         return [{"role": message.role, "content": message.content}]
@@ -91,7 +109,7 @@ def _convert_message_to_dicts(
             "content": f"{{{message.variable_name}}}",
         }
         return [formatted_messages]
-    elif isinstance(message, BaseMessagePromptTemplate):
+    elif isinstance(message, (BaseMessagePromptTemplate, BaseChatPromptTemplate)):
         vars = message.input_variables
         # create a fake dictionary mapping name -> '{name}'
         vars_as_templates = {v: f"{{{v}}}" for v in vars}
@@ -100,7 +118,6 @@ def _convert_message_to_dicts(
     elif isinstance(message, dict):
         return [message]
     else:
-        breakpoint()
         raise ValueError(f"Got unknown type {type(message)}: {message}")
 
 
@@ -159,9 +176,24 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             self._format_run_id(run_id),
             ", ".join(inputs.keys()),
         )
+        # super hack to extract the prompt if it exists
+        prompt_template_chat = None
+        prompt_template_text = None
+        prompt_obj = serialized.get("kwargs", {}).get("prompt")
+        if prompt_obj:
+            prompt_template = loads(json.dumps(prompt_obj))
+            print("on_chain_start", prompt_template)
+            inputs = {k: f"{{{k}}}" for k in prompt_template.input_variables}
+            if isinstance(prompt_template, BasePromptTemplate):
+                prompt_template_value = prompt_template.format_prompt(**inputs)
+                prompt_template_text = prompt_template_value.to_string()
+                prompt_template_chat = prompt_template_value.to_messages()
+
         self.runs[run_id] = {
             "inputs": inputs,
             "parent_run_id": parent_run_id,
+            "prompt_template_text": prompt_template_text,
+            "prompt_template_chat": prompt_template_chat,
             "prompt_event_id": uuid.uuid4(),
         }
 
@@ -230,7 +262,10 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         # TODO: need to generate a new event id for each prompt
         asyncio.run(
             self._async_send_completion(
-                run_id, self.template_text, run["inputs"], prompts
+                run_id,
+                run.get("prompt_template_text") or self.template_text,
+                run["inputs"],
+                prompts,
             )
         )
 
@@ -258,7 +293,12 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         run["messages"] = messages
         run["now"] = time.time()
         asyncio.run(
-            self._async_send_chat(run_id, self.template_chat, run["inputs"], messages)
+            self._async_send_chat(
+                run_id,
+                run.get("prompt_template_chat") or self.template_chat,
+                run["inputs"],
+                messages,
+            )
         )
 
     @avoid_duplicate_call
@@ -287,7 +327,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             asyncio.run(
                 self._async_send_chat(
                     run["prompt_event_id"],
-                    self.template_chat,
+                    run.get("prompt_template_chat") or self.template_chat,
                     run["inputs"],
                     run["messages"],
                     response,
@@ -299,7 +339,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             asyncio.run(
                 self._async_send_completion(
                     run["prompt_event_id"],
-                    self.template_text,
+                    run.get("prompt_template_text") or self.template_text,
                     run["inputs"],
                     run["prompts"],
                     response,
