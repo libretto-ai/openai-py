@@ -183,9 +183,9 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         if prompt_obj:
             prompt_template = loads(json.dumps(prompt_obj))
             print("on_chain_start", prompt_template)
-            inputs = {k: f"{{{k}}}" for k in prompt_template.input_variables}
+            variable_inputs = {k: f"{{{k}}}" for k in prompt_template.input_variables}
             if isinstance(prompt_template, BasePromptTemplate):
-                prompt_template_value = prompt_template.format_prompt(**inputs)
+                prompt_template_value = prompt_template.format_prompt(**variable_inputs)
                 prompt_template_text = prompt_template_value.to_string()
                 prompt_template_chat = prompt_template_value.to_messages()
 
