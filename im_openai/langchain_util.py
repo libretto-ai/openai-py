@@ -41,26 +41,6 @@ logger = logging.getLogger(__name__)
 from functools import wraps
 
 
-def avoid_duplicate_call(f):
-    """Simple decorator that prevents a function from being called with the same
-    arguments twice in a row
-
-    temporary until https://github.com/hwchase17/langchain/pull/7504 is fixed.
-    """
-    cache_key = None
-
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        key = tuple(args) + tuple(kwargs.items())
-        nonlocal cache_key
-        if key != cache_key:
-            cache_key = key
-            return f(*args, **kwargs)
-        return None
-
-    return wrapper
-
-
 def format_langchain_value(value: Any) -> Any:
     if isinstance(value, (str, bool, int, float)):
         return value
@@ -157,7 +137,6 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             return self._get_run(self.parent_run_ids[run_id])
         return None
 
-    @avoid_duplicate_call
     def on_chain_start(
         self,
         serialized,
@@ -197,7 +176,6 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             "prompt_event_id": uuid.uuid4(),
         }
 
-    @avoid_duplicate_call
     def on_agent_action(
         self,
         action: AgentAction,
@@ -215,7 +193,6 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         )
         """Run on agent action."""
 
-    @avoid_duplicate_call
     def on_agent_finish(
         self,
         finish: AgentFinish,
@@ -233,7 +210,6 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             finish.log,
         )
 
-    @avoid_duplicate_call
     def on_llm_start(
         self,
         serialized: Dict[str, Any],
@@ -269,7 +245,6 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             )
         )
 
-    @avoid_duplicate_call
     def on_chat_model_start(
         self,
         serialized,
@@ -301,7 +276,6 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             )
         )
 
-    @avoid_duplicate_call
     def on_llm_end(
         self,
         response: LLMResult,
@@ -349,7 +323,6 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         else:
             logger.warning("Missing prompts or messages in run %s %s", run_id, run)
 
-    @avoid_duplicate_call
     def on_llm_error(
         self,
         error: Union[Exception, KeyboardInterrupt],
@@ -360,7 +333,6 @@ class PromptWatchCallbacks(BaseCallbackHandler):
     ) -> Any:
         """Run when LLM errors."""
 
-    @avoid_duplicate_call
     def on_chain_end(
         self,
         outputs: Dict[str, Any],
