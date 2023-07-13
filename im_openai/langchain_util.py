@@ -15,8 +15,8 @@ from langchain.callbacks.base import BaseCallbackHandler
 from langchain.load.load import loads
 from langchain.prompts import (
     BaseChatPromptTemplate,
-    StringPromptTemplate,
     BasePromptTemplate,
+    StringPromptTemplate,
 )
 from langchain.prompts.chat import (
     BaseChatPromptTemplate,
@@ -44,13 +44,15 @@ from functools import wraps
 def format_langchain_value(value: Any) -> Any:
     if isinstance(value, (str, bool, int, float)):
         return value
-    if isinstance(value, list):
+    if isinstance(value, (list, tuple)):
         return [format_langchain_value(v) for v in value]
     if isinstance(value, dict):
         return {k: format_langchain_value(v) for k, v in value.items()}
     if isinstance(value, StringPromptTemplate):
         inputs = {k: f"{{{k}}}" for k in value.input_variables}
         return value.format(**inputs)
+    if isinstance(value, BaseMessage):
+        return format_chat_template([value])[0]
     return format_chat_template(value)
 
 
@@ -163,25 +165,27 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             self._format_run_id(run_id),
             ", ".join(inputs.keys()),
         )
+
+        self.runs[run_id] = {
+            "inputs": inputs,
+            "parent_run_id": parent_run_id,
+            "prompt_event_id": uuid.uuid4(),
+        }
+
         # super hack to extract the prompt if it exists
         prompt_template_chat = None
         prompt_template_text = None
         prompt_obj = serialized.get("kwargs", {}).get("prompt")
         if prompt_obj:
             prompt_template = loads(json.dumps(prompt_obj))
-            variable_inputs = {k: f"{{{k}}}" for k in prompt_template.input_variables}
             if isinstance(prompt_template, BasePromptTemplate):
-                prompt_template_value = prompt_template.format_prompt(**variable_inputs)
-                prompt_template_text = prompt_template_value.to_string()
-                prompt_template_chat = prompt_template_value.to_messages()
-
-        self.runs[run_id] = {
-            "inputs": inputs,
-            "parent_run_id": parent_run_id,
-            "prompt_template_text": prompt_template_text,
-            "prompt_template_chat": prompt_template_chat,
-            "prompt_event_id": uuid.uuid4(),
-        }
+                self.runs[run_id]["prompt_template"] = prompt_template
+        #         variable_inputs = {k: f"{{{k}}}" for k in prompt_template.input_variables}
+        #         prompt_template_value = prompt_template.format_prompt(**variable_inputs)
+        #         prompt_template_text = prompt_template_value.to_string()
+        #         prompt_template_chat = prompt_template_value.to_messages()
+        # self.runs[run_id]["prompt_template_text"] = prompt_template_text
+        # self.runs[run_id]["prompt_template_chat"] = prompt_template_chat
 
     def on_agent_action(
         self,
@@ -241,6 +245,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             return
         run["prompts"] = prompts
         run["now"] = time.time()
+        template = self._get_run_metadata(run_id, "prompt_template")
         template_text = (
             self._get_run_metadata(run_id, "prompt_template_text") or self.template_text
         )
@@ -276,9 +281,12 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             return
         run["messages"] = messages
         run["now"] = time.time()
-        template_chat = (
-            self._get_run_metadata(run_id, "prompt_template_chat") or self.template_chat
-        )
+
+        template = self._get_run_metadata(run_id, "prompt_template")
+        inputs = self._get_run_metadata(run_id, "inputs")
+        stub_inputs = make_stub_inputs(inputs)
+
+        template_chat = format_chat_template(template.format_messages(**stub_inputs))
         asyncio.run(
             self._async_send_chat(
                 run_id,
@@ -303,16 +311,21 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             self._format_run_id(run_id),
             len(response.generations),
         )
+        # breakpoint()
         run = self._get_run(run_id)
         if not run:
+            logger.warning("on_llm_end Missing run %s", run_id)
             return
         now = time.time()
         response_time = (now - run["now"]) * 1000
 
         if "messages" in run:
-            template_chat = (
-                self._get_run_metadata(run_id, "prompt_template_chat")
-                or self.template_chat
+            template = self._get_run_metadata(run_id, "prompt_template")
+            inputs = self._get_run_metadata(run_id, "inputs")
+            stub_inputs = make_stub_inputs(inputs)
+
+            template_chat = format_chat_template(
+                template.format_messages(**stub_inputs)
             )
             asyncio.run(
                 self._async_send_chat(
@@ -449,3 +462,36 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         if run_id in self.parent_run_ids:
             return f"{self._format_run_id(self.parent_run_ids[run_id])} -> {run_id}"
         return str(run_id)
+
+
+def make_stub_inputs(inputs: Any, prefix=""):
+    if isinstance(inputs, dict):
+        dict_prefix = f"{prefix}." if prefix else ""
+        return {
+            k: make_stub_inputs(v, prefix=f"{dict_prefix}{k}")
+            for k, v in inputs.items()
+        }
+    if isinstance(inputs, (str, int, float, bool)):
+        return f"{{{prefix}}}"
+    if isinstance(inputs, list):
+        # TODO: figure out a way to collapse lists. Right now this will create stuff like:
+        # [
+        #     {
+        #         "role": "{agent_history[0].role}",
+        #         "content": "{agent_history[0].content}",
+        #     },
+        #     {
+        #         "role": "{agent_history[1].role}",
+        #         "content": "{agent_history[1].content}",
+        #     },
+        # ]
+        # return [f"{{{prefix}}}"] * len(inputs)
+        return [
+            make_stub_inputs(v, prefix=f"{prefix}[{i}]") for i, v in enumerate(inputs)
+        ]
+    if isinstance(inputs, tuple):
+        return tuple(
+            make_stub_inputs(v, prefix=f"{prefix}[{i}]") for i, v in enumerate(inputs)
+        )
+    resolved = make_stub_inputs(format_langchain_value(inputs), prefix=prefix)
+    return resolved
