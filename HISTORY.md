@@ -53,4 +53,8 @@
 
 - Fix prompt retrieval in deep chains
 
+## 0.6.2 (2023-07-13)
+
+- Handle cases where input values are not strings
+
 

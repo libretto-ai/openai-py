@@ -13,6 +13,9 @@
 	},
 	"runArgs": [
 		"--network=host"
+	],
+	"mounts": [
+		"source=${localWorkspaceFolder}/../../github/langchain,target=${containerWorkspaceFolder}/../langchain,type=bind"
 	]
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],

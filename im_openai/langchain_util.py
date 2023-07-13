@@ -158,6 +158,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         metadata=None,
         **kwargs,
     ):
+        # breakpoint()
         if parent_run_id:
             self.parent_run_ids[run_id] = parent_run_id
         logger.info(

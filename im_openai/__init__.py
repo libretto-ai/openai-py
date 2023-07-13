@@ -2,7 +2,7 @@
 
 __author__ = """Alec Flett"""
 __email__ = "alec@thegp.com"
-__version__ = "0.6.1"
+__version__ = "0.6.2"
 from .client import event_session, send_event
 from .patch import patch_openai
 from .template import TemplateString
