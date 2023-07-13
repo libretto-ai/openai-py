@@ -130,11 +130,19 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             self.template_chat = None
         self.parent_run_ids = {}
 
-    def _get_run(self, run_id):
+    def _get_run(self, run_id: UUID):
         if run_id in self.runs:
             return self.runs[run_id]
         if run_id in self.parent_run_ids:
             return self._get_run(self.parent_run_ids[run_id])
+        return None
+
+    def _get_run_metadata(self, run_id: UUID, metadata_key: str):
+        """Walk up the parent chain looking for the nearest run with the metadata_key defined"""
+        if run_id in self.runs and metadata_key in self.runs[run_id]:
+            return self.runs[run_id][metadata_key]
+        if run_id in self.parent_run_ids:
+            return self._get_run_metadata(self.parent_run_ids[run_id], metadata_key)
         return None
 
     def on_chain_start(
@@ -161,7 +169,6 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         prompt_obj = serialized.get("kwargs", {}).get("prompt")
         if prompt_obj:
             prompt_template = loads(json.dumps(prompt_obj))
-            print("on_chain_start", prompt_template)
             variable_inputs = {k: f"{{{k}}}" for k in prompt_template.input_variables}
             if isinstance(prompt_template, BasePromptTemplate):
                 prompt_template_value = prompt_template.format_prompt(**variable_inputs)
@@ -227,19 +234,21 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             self._format_run_id(run_id),
             len(prompts),
         )
+
         run = self._get_run(run_id)
         if not run:
             logger.warning("on_llm_start Missing run %s", run_id)
             return
         run["prompts"] = prompts
         run["now"] = time.time()
-        if self.template_text is None:
-            return
+        template_text = (
+            self._get_run_metadata(run_id, "prompt_template_text") or self.template_text
+        )
         # TODO: need to generate a new event id for each prompt
         asyncio.run(
             self._async_send_completion(
                 run_id,
-                run.get("prompt_template_text") or self.template_text,
+                template_text,
                 run["inputs"],
                 prompts,
             )
@@ -267,10 +276,13 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             return
         run["messages"] = messages
         run["now"] = time.time()
+        template_chat = (
+            self._get_run_metadata(run_id, "prompt_template_chat") or self.template_chat
+        )
         asyncio.run(
             self._async_send_chat(
                 run_id,
-                run.get("prompt_template_chat") or self.template_chat,
+                template_chat,
                 run["inputs"],
                 messages,
             )
@@ -298,10 +310,14 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         response_time = (now - run["now"]) * 1000
 
         if "messages" in run:
+            template_chat = (
+                self._get_run_metadata(run_id, "prompt_template_chat")
+                or self.template_chat
+            )
             asyncio.run(
                 self._async_send_chat(
                     run["prompt_event_id"],
-                    run.get("prompt_template_chat") or self.template_chat,
+                    template_chat,
                     run["inputs"],
                     run["messages"],
                     response,
@@ -309,11 +325,14 @@ class PromptWatchCallbacks(BaseCallbackHandler):
                 )
             )
         elif "prompts" in run:
-            print("Sending prompts")
+            template_text = (
+                self._get_run_metadata(run_id, "prompt_template_text")
+                or self.template_text
+            )
             asyncio.run(
                 self._async_send_completion(
                     run["prompt_event_id"],
-                    run.get("prompt_template_text") or self.template_text,
+                    template_text,
                     run["inputs"],
                     run["prompts"],
                     response,
