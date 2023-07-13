@@ -49,5 +49,8 @@
 
 - Handle duplicate callbacks, agents, etc
 
+## 0.6.1 (2023-07-12)
+
+- Fix prompt retrieval in deep chains
 
 
