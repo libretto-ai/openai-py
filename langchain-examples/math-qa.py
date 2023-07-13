@@ -20,7 +20,7 @@ logger = logging.getLogger("im_openai")
 logger.setLevel(logging.INFO)
 
 callbacks = langchain_util.PromptWatchCallbacks(
-    project_key="example-langchain-simple-qa", api_name="qa-evaluation"
+    project_key="example-langchain-simple-qa", api_name="math-qa-2"
 )
 
 llm = ChatOpenAI(client=ChatCompletion, temperature=0, callbacks=[callbacks])
@@ -35,9 +35,9 @@ agent = initialize_agent(
     # agent_kwargs={"callbacks": [callbacks]},
 )
 
-print(
-    agent.run(
-        "If my age is half of my dad's age and he is going to be 60 next year, what is my current age?",
-        callbacks=[callbacks],
-    )
+result = agent.run(
+    "If my age is half of my dad's age and he is going to be 60 next year, what is my current age?",
+    callbacks=[callbacks],
 )
+
+print("Agent Result: ", result)
