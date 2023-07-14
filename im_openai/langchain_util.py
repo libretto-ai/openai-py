@@ -7,7 +7,7 @@ import os
 import time
 import uuid
 from itertools import zip_longest
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, TypeVar
 from uuid import UUID
 
 import aiohttp
@@ -181,12 +181,6 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             prompt_template = loads(json.dumps(prompt_obj))
             if isinstance(prompt_template, BasePromptTemplate):
                 self.runs[run_id]["prompt_template"] = prompt_template
-        #         variable_inputs = {k: f"{{{k}}}" for k in prompt_template.input_variables}
-        #         prompt_template_value = prompt_template.format_prompt(**variable_inputs)
-        #         prompt_template_text = prompt_template_value.to_string()
-        #         prompt_template_chat = prompt_template_value.to_messages()
-        # self.runs[run_id]["prompt_template_text"] = prompt_template_text
-        # self.runs[run_id]["prompt_template_chat"] = prompt_template_chat
 
     def on_agent_action(
         self,
@@ -246,7 +240,9 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             return
         run["prompts"] = prompts
         run["now"] = time.time()
-        template = self._get_run_metadata(run_id, "prompt_template")
+        template: BasePromptTemplate | None = self._get_run_metadata(
+            run_id, "prompt_template"
+        )
         template_text = (
             self._get_run_metadata(run_id, "prompt_template_text") or self.template_text
         )
@@ -283,11 +279,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         run["messages"] = messages
         run["now"] = time.time()
 
-        template = self._get_run_metadata(run_id, "prompt_template")
-        inputs = self._get_run_metadata(run_id, "inputs")
-        stub_inputs = make_stub_inputs(inputs)
-
-        template_chat = format_chat_template(template.format_messages(**stub_inputs))
+        template_chat = self._resolve_chat_template(run_id)
         asyncio.run(
             self._async_send_chat(
                 run_id,
@@ -321,13 +313,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         response_time = (now - run["now"]) * 1000
 
         if "messages" in run:
-            template = self._get_run_metadata(run_id, "prompt_template")
-            inputs = self._get_run_metadata(run_id, "inputs")
-            stub_inputs = make_stub_inputs(inputs)
-
-            template_chat = format_chat_template(
-                template.format_messages(**stub_inputs)
-            )
+            template_chat = self._resolve_chat_template(run_id)
             asyncio.run(
                 self._async_send_chat(
                     run["prompt_event_id"],
@@ -464,12 +450,41 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             return f"{self._format_run_id(self.parent_run_ids[run_id])} -> {run_id}"
         return str(run_id)
 
+    def _resolve_chat_template(self, run_id: UUID):
+        """Resolve the template_chat into a list of dicts"""
+        template = self._get_run_metadata(run_id, "prompt_template")
+        inputs = self._get_run_metadata(run_id, "inputs")
+        template_chat = None
+        if template and inputs:
+            stub_inputs = make_stub_inputs(inputs)
+            filtered_stub_inputs = {
+                k: v for k, v in stub_inputs.items() if k in template.input_variables
+            }
+            if isinstance(
+                template, (BaseMessagePromptTemplate, BaseChatPromptTemplate)
+            ):
+                # We can't go through format_prompt because it doesn't like formatting the wrong types
+                template_chat = template.format_messages(**filtered_stub_inputs)
 
-def make_stub_inputs(inputs: Any, prefix=""):
+            elif isinstance(template, StringPromptTemplate):
+                template_chat = template.format_prompt(
+                    **filtered_stub_inputs
+                ).to_messages()
+            else:
+                raise ValueError(f"Unknown template type {type(template)}")
+            template_chat = format_chat_template(template_chat)  # type: ignore
+        return template_chat
+
+
+def make_stub_inputs(inputs: Dict[str, Any]) -> Dict[str, Any]:
+    return make_stub_inputs_raw(inputs, "")  # type: ignore
+
+
+def make_stub_inputs_raw(inputs: Any, prefix: str):
     if isinstance(inputs, dict):
         dict_prefix = f"{prefix}." if prefix else ""
         return {
-            k: make_stub_inputs(v, prefix=f"{dict_prefix}{k}")
+            k: make_stub_inputs_raw(v, prefix=f"{dict_prefix}{k}")
             for k, v in inputs.items()
         }
     if isinstance(inputs, (str, int, float, bool)):
@@ -488,11 +503,13 @@ def make_stub_inputs(inputs: Any, prefix=""):
         # ]
         # return [f"{{{prefix}}}"] * len(inputs)
         return [
-            make_stub_inputs(v, prefix=f"{prefix}[{i}]") for i, v in enumerate(inputs)
+            make_stub_inputs_raw(v, prefix=f"{prefix}[{i}]")
+            for i, v in enumerate(inputs)
         ]
     if isinstance(inputs, tuple):
         return tuple(
-            make_stub_inputs(v, prefix=f"{prefix}[{i}]") for i, v in enumerate(inputs)
+            make_stub_inputs_raw(v, prefix=f"{prefix}[{i}]")
+            for i, v in enumerate(inputs)
         )
-    resolved = make_stub_inputs(format_langchain_value(inputs), prefix=prefix)
+    resolved = make_stub_inputs_raw(format_langchain_value(inputs), prefix=prefix)
     return resolved

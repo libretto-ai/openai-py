@@ -3,12 +3,7 @@ import os
 import sys
 
 from langchain.agents import AgentType, initialize_agent, load_tools
-from langchain.chains import RetrievalQA
 from langchain.chat_models import ChatOpenAI
-from langchain.document_loaders import TextLoader
-from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.text_splitter import CharacterTextSplitter
-from langchain.vectorstores import FAISS
 from openai import ChatCompletion
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
