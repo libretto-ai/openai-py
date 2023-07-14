@@ -174,8 +174,6 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         }
 
         # super hack to extract the prompt if it exists
-        prompt_template_chat = None
-        prompt_template_text = None
         prompt_obj = serialized.get("kwargs", {}).get("prompt")
         if prompt_obj:
             prompt_template = loads(json.dumps(prompt_obj))
@@ -240,12 +238,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             return
         run["prompts"] = prompts
         run["now"] = time.time()
-        template: BasePromptTemplate | None = self._get_run_metadata(
-            run_id, "prompt_template"
-        )
-        template_text = (
-            self._get_run_metadata(run_id, "prompt_template_text") or self.template_text
-        )
+        template_text = self._resolve_completion_template(run_id)
         # TODO: need to generate a new event id for each prompt
         asyncio.run(
             self._async_send_completion(
@@ -374,7 +367,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
     async def _async_send_completion(
         self,
         prompt_event_id: UUID,
-        template_text: str,
+        template_text: str | None,
         inputs: Dict,
         prompts: List[str],
         result: LLMResult | None = None,
@@ -474,6 +467,28 @@ class PromptWatchCallbacks(BaseCallbackHandler):
                 raise ValueError(f"Unknown template type {type(template)}")
             template_chat = format_chat_template(template_chat)  # type: ignore
         return template_chat
+
+    def _resolve_completion_template(self, run_id: UUID):
+        """Resolve the template_chat into a list of dicts"""
+        template = self._get_run_metadata(run_id, "prompt_template")
+        inputs = self._get_run_metadata(run_id, "inputs")
+        template_text: str | None = None
+        if template and inputs:
+            stub_inputs = make_stub_inputs(inputs)
+            filtered_stub_inputs = {
+                k: v for k, v in stub_inputs.items() if k in template.input_variables
+            }
+            if isinstance(template, BaseChatPromptTemplate):
+                # We can't go through format_prompt because it doesn't like formatting the wrong types
+                template_text = template.format(**filtered_stub_inputs)
+            elif isinstance(template, StringPromptTemplate):
+                template_text = template.format_prompt(
+                    **filtered_stub_inputs
+                ).to_string()
+            else:
+                raise ValueError(f"Unknown template type {type(template)}")
+            # template_text = format_chat_template(template_text)  # type: ignore
+        return template_text
 
 
 def make_stub_inputs(inputs: Dict[str, Any]) -> Dict[str, Any]:
