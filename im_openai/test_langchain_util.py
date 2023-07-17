@@ -15,6 +15,7 @@ from langchain.prompts import (
     StringPromptTemplate,
     SystemMessagePromptTemplate,
 )
+from langchain.schema import HumanMessage, SystemMessage
 
 from im_openai import langchain_util
 
@@ -116,6 +117,115 @@ def test_chat_model_start(
             {"content": "{text}", "role": "user"},
         ],
         prompt_params=template_args,
+        prompt_event_id=None,
+        chat_id=None,
+        response=None,
+        response_time=None,
+        prompt=None,
+        parent_event_id=str(parent_run_id),
+    )
+
+
+def test_chat_model_template_no_vars(
+    pwc: langchain_util.PromptWatchCallbacks, mock_send_event: MagicMock
+):
+    run_id = uuid.uuid4()
+    parent_run_id = uuid.uuid4()
+    template_str = "You are a helpful assistant"
+    system_message = SystemMessage(content=template_str)
+    human_message = HumanMessage(content="Hello")
+    template = ChatPromptTemplate.from_messages([system_message, human_message])
+    chain = LLMChain(
+        llm=OpenAI(client=None, model="text-davinci-003"),
+        prompt=template,
+    )
+    template_args = {}
+    run_chat_model_start(
+        pwc,
+        mock_send_event,
+        run_id,
+        parent_run_id,
+        chain,
+        template_args,
+    )
+
+    mock_send_event.assert_called_once_with(
+        ANY,
+        project_key=project_key,
+        api_name=api_name,
+        prompt_template_text=None,
+        prompt_template_chat=None,
+        prompt_params=template_args,
+        prompt_event_id=None,
+        chat_id=None,
+        response=None,
+        response_time=None,
+        # Comes in via the prompt rather than the prompt_template_chat/etc
+        prompt={
+            "chat": [
+                {
+                    "content": "You are a helpful assistant",
+                    "role": "system",
+                },
+                {"content": "Hello", "role": "user"},
+            ]
+        },
+        parent_event_id=str(parent_run_id),
+    )
+
+
+@pytest.mark.skip("Need to figure this out")
+def test_chat_model_parent(
+    pwc: langchain_util.PromptWatchCallbacks, mock_send_event: MagicMock
+):
+    result_uuid = asyncio.futures.Future()
+    result_uuid.set_result(uuid.uuid4())
+    mock_send_event.return_value = result_uuid
+    run_id = uuid.uuid4()
+    parent_run_id = uuid.uuid4()
+    template_str = "You are a helpful assistant that translates {input_language} to {output_language}."
+    system_message_prompt = SystemMessagePromptTemplate.from_template(template_str)
+
+
+@pytest.mark.skip("Need to figure this out")
+def test_chat_model_start_string(
+    pwc: langchain_util.PromptWatchCallbacks, mock_send_event: MagicMock
+):
+    run_id = uuid.uuid4()
+    parent_run_id = uuid.uuid4()
+    template_str = "You are a helpful assistant that translates {input_language} to {output_language}."
+    template = StringPromptTemplate
+    chain = LLMChain(
+        llm=OpenAI(client=None, model="text-davinci-003"),
+        prompt=template,
+    )
+    template_args = {
+        "input_language": "English",
+        "output_language": "French",
+        "text": "Hello",
+    }
+    run_chat_model_start(
+        pwc,
+        mock_send_event,
+        run_id,
+        parent_run_id,
+        chain,
+        template_args,
+    )
+
+    mock_send_event.assert_called_once_with(
+        ANY,
+        project_key=project_key,
+        api_name=api_name,
+        prompt_template_text=None,
+        prompt_template_chat=[
+            {
+                "content": "You are a helpful assistant that translates {input_language} to {output_language}.",
+                "role": "system",
+            },
+            {"content": "{text}", "role": "user"},
+        ],
+        prompt_params=template_args,
         prompt_event_id=str(run_id),
         chat_id=None,
         response=None,
@@ -169,7 +279,7 @@ def run_chat_model_start(
     m = chain.prompt.format_messages(**args)
     pwc.on_chat_model_start(
         dumpd(chain.llm),
-        messages=[[langchain_util.format_chat_template(m)]],
+        messages=[langchain_util.format_chat_template(m)],
         run_id=run_id,
         parent_run_id=parent_run_id,
         tags=None,
