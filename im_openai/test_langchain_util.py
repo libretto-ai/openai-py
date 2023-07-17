@@ -63,11 +63,12 @@ def test_llm_start(
         prompt_template_text="What is a good name for a company that makes {product}?",
         prompt_template_chat=None,
         prompt_params={"product": "socks"},
-        prompt_event_id=str(run_id),
+        prompt_event_id=None,
         chat_id=None,
         response=None,
         response_time=None,
         prompt=None,
+        parent_event_id=str(parent_run_id),
     )
 
 

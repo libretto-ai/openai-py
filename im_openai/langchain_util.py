@@ -115,6 +115,9 @@ class PromptWatchCallbacks(BaseCallbackHandler):
     parent_run_ids: Dict[UUID, UUID] = {}
     """In case self.runs is missing a run, we can walk up the parent chain to find it"""
 
+    server_event_ids: Dict[UUID, str | None] = {}
+    """Mapping of run_id to server event id"""
+
     def __init__(
         self,
         project_key: str,
@@ -160,6 +163,12 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         if run_id in self.parent_run_ids:
             return self._get_run_info(self.parent_run_ids[run_id], metadata_key)
         return None
+
+    def _get_server_event_id(self, run_id: UUID):
+        """Lazily insert a server event id if it doesn't exist. This will get filled in later when the initial event is sent"""
+        if run_id not in self.server_event_ids:
+            self.server_event_ids[run_id] = None
+        return self.server_event_ids[run_id]
 
     def on_chain_start(
         self,
@@ -260,6 +269,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
                 template_text,
                 run["inputs"],
                 prompts,
+                parent_event_id=parent_run_id,
             )
         )
 
@@ -294,6 +304,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
                 template_chat,
                 run["inputs"],
                 messages,
+                parent_event_id=parent_run_id,
             )
         )
 
@@ -325,12 +336,13 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             template_chat = self._resolve_chat_template(run_id)
             asyncio.run(
                 self._async_send_chat(
-                    run["prompt_event_id"],
+                    run_id,
                     template_chat,
                     run["inputs"],
                     run["messages"],
                     response,
                     response_time,
+                    parent_event_id=parent_run_id,
                 )
             )
         elif "prompts" in run:
@@ -339,12 +351,13 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             )
             asyncio.run(
                 self._async_send_completion(
-                    run["prompt_event_id"],
+                    run_id,
                     template_text,
                     run["inputs"],
                     run["prompts"],
                     response,
                     response_time,
+                    parent_event_id=parent_run_id,
                 )
             )
         else:
@@ -381,12 +394,13 @@ class PromptWatchCallbacks(BaseCallbackHandler):
 
     async def _async_send(
         self,
-        prompt_event_id: UUID,
+        run_id: UUID,
         template: List[Dict] | str | None,
         inputs: Dict,
         iterations: List[str] | List[List[BaseMessage]],
         result: LLMResult | None = None,
         response_time: float | None = None,
+        parent_event_id: UUID | None = None,
         is_chat: bool = False,
     ):
         async with aiohttp.ClientSession() as session:
@@ -413,36 +427,42 @@ class PromptWatchCallbacks(BaseCallbackHandler):
                     prompt_template_chat = None
 
                 # TODO: gather these up and send them all at once
-                await client.send_event(
+                prompt_event_id = self._get_server_event_id(run_id)
+                id = await client.send_event(
                     session,
                     project_key=self.project_key,
                     api_name=self.api_name,
                     prompt_template_text=prompt_template_text,  # type: ignore
                     prompt_template_chat=prompt_template_chat,  # type: ignore
                     prompt_params=json_inputs,
-                    prompt_event_id=str(prompt_event_id),
+                    prompt_event_id=prompt_event_id,
                     chat_id=None,
                     response=response_text,
                     response_time=response_time,
                     prompt=prompt,
+                    parent_event_id=str(parent_event_id) if parent_event_id else None,
                 )
+                if id:
+                    self.server_event_ids[run_id] = id
 
     async def _async_send_chat(
         self,
-        prompt_event_id: UUID,
+        run_id: UUID,
         template_chats: List[Dict] | None,
         inputs: Dict,
         messages_list: List[List[BaseMessage]],
         result: LLMResult | None = None,
         response_time: float | None = None,
+        parent_event_id: UUID | None = None,
     ):
         await self._async_send(
-            prompt_event_id,
+            run_id,
             template_chats,
             inputs,
             messages_list,
             result,
             response_time,
+            parent_event_id,
             is_chat=True,
         )
 
@@ -454,6 +474,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         prompts: List[str],
         result: LLMResult | None = None,
         response_time: float | None = None,
+        parent_event_id: UUID | None = None,
     ):
         await self._async_send(
             prompt_event_id,
@@ -462,6 +483,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             prompts,
             result,
             response_time,
+            parent_event_id=parent_event_id,
             is_chat=False,
         )
 
