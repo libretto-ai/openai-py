@@ -76,8 +76,8 @@ def test_chat_model_start(
 ):
     run_id = uuid.uuid4()
     parent_run_id = uuid.uuid4()
-    template = "You are a helpful assistant that translates {input_language} to {output_language}."
-    system_message_prompt = SystemMessagePromptTemplate.from_template(template)
+    template_str = "You are a helpful assistant that translates {input_language} to {output_language}."
+    system_message_prompt = SystemMessagePromptTemplate.from_template(template_str)
     human_template = "{text}"
     human_message_prompt = HumanMessagePromptTemplate.from_template(human_template)
 

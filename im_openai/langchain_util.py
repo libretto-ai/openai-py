@@ -189,9 +189,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         # super hack to extract the prompt if it exists
         prompt_obj = serialized.get("kwargs", {}).get("prompt")
         if prompt_obj:
-            prompt_template = loads(
-                json.dumps(prompt_obj), valid_namespaces=["schematic"]
-            )
+            prompt_template = loads(json.dumps(prompt_obj))
             if isinstance(prompt_template, BasePromptTemplate):
                 self.runs[run_id]["prompt_template"] = prompt_template
 
