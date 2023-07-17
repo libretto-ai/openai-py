@@ -184,9 +184,10 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         if parent_run_id:
             self.parent_run_ids[run_id] = parent_run_id
         logger.info(
-            "on_chain_start      %s [%s]",
+            "on_chain_start      %s [%s] %s",
             self._format_run_id(run_id),
             ", ".join(inputs.keys()),
+            ".".join(serialized["id"]),
         )
 
         self.runs[run_id] = {
