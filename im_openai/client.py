@@ -75,7 +75,6 @@ async def send_event(
 
     result = await session.post(PROMPT_REPORTING_URL, json=event)
     json = await result.json()
-    print("Got response", json)
     if isinstance(json, dict):
         return json.get("id")
 

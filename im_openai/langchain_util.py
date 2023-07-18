@@ -12,7 +12,6 @@ from uuid import UUID
 
 import aiohttp
 from langchain.callbacks.base import BaseCallbackHandler
-from langchain.load.load import loads
 from langchain.prompts import (
     BaseChatPromptTemplate,
     BasePromptTemplate,
@@ -35,6 +34,8 @@ from langchain.schema import (
 )
 
 from im_openai import client
+
+from .langchain_patch import loads
 
 logger = logging.getLogger(__name__)
 
