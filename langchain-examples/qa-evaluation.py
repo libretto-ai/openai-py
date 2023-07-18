@@ -44,4 +44,4 @@ qa = RetrievalQA.from_llm(
     callbacks=[callbacks],
 )
 
-print(qa({"query": "What is the state of the union?"}))
+print(qa({"query": "What is the state of the union?"}, callbacks=[callbacks]))

@@ -12,6 +12,7 @@ import aiohttp
 async def send_event(
     session: aiohttp.ClientSession,
     project_key: str,
+    *,
     api_name: str | None,
     prompt_event_id: str | None,
     prompt_template_text: str | None,
@@ -21,7 +22,9 @@ async def send_event(
     response: str | None = None,
     response_time: float | None = None,
     prompt: Any | None = None,
-):
+    parent_event_id: str | None = None,
+) -> str | None:
+    """Send an event to Imaginary Dev. Returns the id of the event that was added on the server."""
     PROMPT_REPORTING_URL = os.environ.get(
         "PROMPT_REPORTING_URL", "https://app.imaginary.dev/api/event"
     )
@@ -67,8 +70,14 @@ async def send_event(
         event["responseTime"] = response_time
     if chat_id is not None:
         event["chatId"] = chat_id
+    if parent_event_id is not None:
+        event["parentEventId"] = str(parent_event_id)
 
-    await session.post(PROMPT_REPORTING_URL, json=event)
+    result = await session.post(PROMPT_REPORTING_URL, json=event)
+    json = await result.json()
+    print("Got response", json)
+    if isinstance(json, dict):
+        return json.get("id")
 
 
 @asynccontextmanager
@@ -80,6 +89,7 @@ async def event_session(
     chat_id: str | None = None,
     prompt_template_params: dict | None = None,
     prompt_event_id: str | None = None,
+    parent_event_id: str | None = None,
 ):
     """Context manager for sending an event to Imaginary Dev.
 
@@ -105,6 +115,7 @@ async def event_session(
             prompt_template_chat=prompt_template_chat,
             prompt_params=prompt_template_params,
             chat_id=chat_id,
+            parent_event_id=parent_event_id,
         )
         pending_events_sent.append(first_event_sent)
 
@@ -121,6 +132,7 @@ async def event_session(
                 chat_id=chat_id,
                 response=response,
                 response_time=response_time,
+                parent_event_id=parent_event_id,
             )
             pending_events_sent.append(second_event_sent)
 

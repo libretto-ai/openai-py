@@ -5,7 +5,7 @@
 import pytest
 
 
-from im_openai import im_openai
+import im_openai
 
 
 @pytest.fixture
