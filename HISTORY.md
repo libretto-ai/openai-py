@@ -57,4 +57,10 @@
 
 - Handle cases where input values are not strings
 
+## 0.6.3 (2023-07-18)
+
+- Better support for server-generated event ids 
+  (pre-llm sends event, post-llm re-uses the same id)
+- more tests for different kinds of templates
+
 
