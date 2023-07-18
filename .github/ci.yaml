@@ -12,6 +12,11 @@ jobs:
         strategy:
             matrix:
                 python-version: [3.11]
+        # proactively cancel the same job running on the same branch when a newer
+        # one comes in
+        concurrency:
+            group: ${{ github.ref }}-${{ matrix.python-version }}
+            cancel-in-progress: true
         steps:
             - uses: actions/checkout@v2
             - name: Set up Python ${{ matrix.python-version }}
