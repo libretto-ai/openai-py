@@ -119,6 +119,8 @@ class PromptWatchCallbacks(BaseCallbackHandler):
     server_event_ids: Dict[UUID, str | None] = {}
     """Mapping of run_id to server event id"""
 
+    valid_namespaces: List[str] | None = None
+
     def __init__(
         self,
         project_key: str,
@@ -128,6 +130,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         template_chat: Optional[
             List[Union[BaseMessagePromptTemplate, BaseMessage]]
         ] = None,
+        valid_namespaces: Optional[List[str]] = None,
     ):
         """Initialize the callback handler
 
@@ -140,6 +143,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         self.project_key = project_key or os.environ.get("PROMPT_PROJECT_KEY", "")
         if not self.project_key:
             raise ValueError("project_key must be provided")
+        self.valid_namespaces = valid_namespaces
         self.runs = {}
         self.api_name = api_name
         if template_text is not None:
@@ -200,7 +204,9 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         # super hack to extract the prompt if it exists
         prompt_obj = serialized.get("kwargs", {}).get("prompt")
         if prompt_obj:
-            prompt_template = loads(json.dumps(prompt_obj))
+            prompt_template = loads(
+                json.dumps(prompt_obj), valid_namespaces=self.valid_namespaces
+            )
             if isinstance(prompt_template, BasePromptTemplate):
                 self.runs[run_id]["prompt_template"] = prompt_template
 
