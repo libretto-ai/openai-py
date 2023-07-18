@@ -63,4 +63,7 @@
   (pre-llm sends event, post-llm re-uses the same id)
 - more tests for different kinds of templates
 
+## 0.6.4
+
+- include temporary patched version of loads()
 
