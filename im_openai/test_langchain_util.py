@@ -15,7 +15,7 @@ from langchain.prompts import (
     StringPromptTemplate,
     SystemMessagePromptTemplate,
 )
-from langchain.schema import HumanMessage, SystemMessage
+from langchain.schema import Generation, HumanMessage, LLMResult, SystemMessage
 
 from im_openai import langchain_util
 
@@ -34,6 +34,14 @@ def openai_api_key():
 def mock_send_event():
     with patch("im_openai.client.send_event", autospec=True) as mock:
         yield mock
+
+
+@pytest.fixture()
+def mock_event_loop():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    yield loop
+    loop.close()
 
 
 @pytest.fixture()
@@ -174,27 +182,21 @@ def test_chat_model_template_no_vars(
     )
 
 
-@pytest.mark.skip("Need to figure this out")
 def test_chat_model_parent(
-    pwc: langchain_util.PromptWatchCallbacks, mock_send_event: MagicMock
+    pwc: langchain_util.PromptWatchCallbacks,
+    mock_send_event: MagicMock,
+    mock_event_loop,
 ):
-    result_uuid = asyncio.futures.Future()
-    result_uuid.set_result(uuid.uuid4())
-    mock_send_event.return_value = result_uuid
+    new_event_id = uuid.uuid4()
+    # new_event_future_id = asyncio.futures.Future()
+    # new_event_future_id.set_result(new_event_id)
+    mock_send_event.return_value = str(new_event_id)
     run_id = uuid.uuid4()
     parent_run_id = uuid.uuid4()
     template_str = "You are a helpful assistant that translates {input_language} to {output_language}."
     system_message_prompt = SystemMessagePromptTemplate.from_template(template_str)
 
-
-@pytest.mark.skip("Need to figure this out")
-def test_chat_model_start_string(
-    pwc: langchain_util.PromptWatchCallbacks, mock_send_event: MagicMock
-):
-    run_id = uuid.uuid4()
-    parent_run_id = uuid.uuid4()
-    template_str = "You are a helpful assistant that translates {input_language} to {output_language}."
-    template = StringPromptTemplate
+    template = ChatPromptTemplate.from_messages([system_message_prompt])
     chain = LLMChain(
         llm=OpenAI(client=None, model="text-davinci-003"),
         prompt=template,
@@ -202,8 +204,8 @@ def test_chat_model_start_string(
     template_args = {
         "input_language": "English",
         "output_language": "French",
-        "text": "Hello",
     }
+
     run_chat_model_start(
         pwc,
         mock_send_event,
@@ -220,17 +222,44 @@ def test_chat_model_start_string(
         prompt_template_text=None,
         prompt_template_chat=[
             {
-                "content": "You are a helpful assistant that translates {input_language} to {output_language}.",
                 "role": "system",
-            },
-            {"content": "{text}", "role": "user"},
+                "content": "You are a helpful assistant that translates {input_language} to {output_language}.",
+            }
         ],
         prompt_params=template_args,
-        prompt_event_id=str(run_id),
+        prompt_event_id=None,
         chat_id=None,
         response=None,
         response_time=None,
         prompt=None,
+        parent_event_id=str(parent_run_id),
+    )
+    mock_send_event.reset_mock()
+
+    pwc.on_llm_end(
+        LLMResult(generations=[[Generation(text="hi")]]),
+        run_id=run_id,
+        parent_run_id=parent_run_id,
+    )
+
+    mock_send_event.assert_called_once_with(
+        ANY,
+        project_key=project_key,
+        api_name=api_name,
+        prompt_template_text=None,
+        prompt_template_chat=[
+            {
+                "role": "system",
+                "content": "You are a helpful assistant that translates {input_language} to {output_language}.",
+            }
+        ],
+        prompt_params=template_args,
+        prompt_event_id=str(new_event_id),
+        chat_id=None,
+        response="hi",
+        response_time=ANY,
+        prompt=None,
+        parent_event_id=str(parent_run_id),
     )
 
 
@@ -276,10 +305,12 @@ def run_chat_model_start(
 
     mock_send_event.assert_not_called()
 
-    m = chain.prompt.format_messages(**args)
+    messages = chain.prompt.format_messages(**args)
+    # TODO: the type coercion here is a bit hacky
+    n = langchain_util.format_chat_template(messages)  # type: ignore
     pwc.on_chat_model_start(
         dumpd(chain.llm),
-        messages=[langchain_util.format_chat_template(m)],
+        messages=[n],  # type: ignore
         run_id=run_id,
         parent_run_id=parent_run_id,
         tags=None,
