@@ -9,6 +9,6 @@ Sphinx==7.0.1
 twine==4.0.2
 
 pytest==7.4.0
-black==23.3.0
+black==23.7.0
 openai==0.27.8
 aiohttp==3.8.4
