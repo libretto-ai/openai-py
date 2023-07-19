@@ -67,3 +67,7 @@
 
 - include temporary patched version of loads()
 
+## 0.7.0
+
+- breaking change: move im_openai.langchain_util to im_openai.langchain
+- add support for injecting callbacks into all langchain calls using tracing hooks
