@@ -6,12 +6,14 @@ import logging
 import os
 import time
 import uuid
+from contextlib import asynccontextmanager, contextmanager
 from itertools import zip_longest
-from typing import Any, Dict, List, Optional, TypeVar, Union
+from typing import Any, Dict, List, Optional, TypeVar, Union, cast
 from uuid import UUID
 
 import aiohttp
 from langchain.callbacks.base import BaseCallbackHandler
+from langchain.callbacks.manager import tracing_v2_callback_var
 from langchain.prompts import (
     BaseChatPromptTemplate,
     BasePromptTemplate,
@@ -589,3 +591,33 @@ def make_stub_inputs_raw(inputs: Any, prefix: str):
         )
     resolved = make_stub_inputs_raw(format_langchain_value(inputs), prefix=prefix)
     return resolved
+
+
+def enable_prompt_watch_tracing(callbacks: PromptWatchCallbacks):
+    """Manually enable prompt watch tracing, returns the previous callback handler to be used when disabling"""
+    old_tracing_v2_callback = tracing_v2_callback_var.get()
+    tracing_v2_callback_var.set(cast(Any, callbacks))
+    return old_tracing_v2_callback
+
+
+def disable_prompt_watch_tracing(old_callbacks: BaseCallbackHandler | None):
+    """Manually disable prompt watch tracing, possibly restoring the previous callback handler"""
+    tracing_v2_callback_var.set(cast(Any, old_callbacks))
+
+
+@contextmanager
+def prompt_watch_tracing(*args, **kwargs):
+    """Inject a tracing callback into langchain to watch for prompts.
+
+    Note that this hijacks the v2 tracing callback, so if you're using that for something else, this will break it.
+
+    usage::
+
+        with prompt_watch_tracing(project_key, api_name, template_text="Hello {name}"):
+            chain = LLMChain(llm=...)
+            chain.run("Hello world", inputs={"name": "world"})
+    """
+    callbacks = PromptWatchCallbacks(*args, **kwargs)
+    old_tracing_v2_callback = enable_prompt_watch_tracing(callbacks)
+    yield
+    disable_prompt_watch_tracing(old_tracing_v2_callback)
