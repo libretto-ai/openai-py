@@ -17,7 +17,7 @@ from langchain.prompts import (
 )
 from langchain.schema import Generation, HumanMessage, LLMResult, SystemMessage
 
-from im_openai import langchain_util
+from im_openai import langchain as langchain_util
 
 project_key = "abc"
 api_name = "def"
