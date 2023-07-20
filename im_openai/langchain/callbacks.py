@@ -4,9 +4,9 @@ import logging
 import os
 import time
 import uuid
-from contextlib import asynccontextmanager, contextmanager
+from contextlib import contextmanager
 from itertools import zip_longest
-from typing import Any, Dict, List, Optional, TypeVar, Union, cast
+from typing import Any, Dict, List, Optional, Union, cast
 from uuid import UUID
 
 import aiohttp
@@ -17,21 +17,8 @@ from langchain.prompts import (
     BasePromptTemplate,
     StringPromptTemplate,
 )
-from langchain.prompts.chat import (
-    BaseChatPromptTemplate,
-    BaseMessagePromptTemplate,
-    MessagesPlaceholder,
-)
-from langchain.schema import (
-    AgentAction,
-    AgentFinish,
-    AIMessage,
-    BaseMessage,
-    ChatMessage,
-    HumanMessage,
-    LLMResult,
-    SystemMessage,
-)
+from langchain.prompts.chat import BaseChatPromptTemplate, BaseMessagePromptTemplate
+from langchain.schema import AgentAction, AgentFinish, BaseMessage, LLMResult
 
 from im_openai import client
 
