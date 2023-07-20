@@ -4,7 +4,6 @@
 
 import pytest
 
-
 import im_openai
 
 
