@@ -5,6 +5,11 @@ from typing import Any, Dict
 from unittest.mock import ANY, MagicMock, patch
 
 import pytest
+
+try:
+    import langchain.chains
+except ImportError:
+    pytest.skip("langchain not installed", allow_module_level=True)
 from langchain.chains import LLMChain
 from langchain.llms import OpenAI
 from langchain.load.dump import dumpd
@@ -46,19 +51,13 @@ def mock_event_loop():
 
 @pytest.fixture()
 def pwc():
-    return langchain_util.PromptWatchCallbacks(
-        project_key=project_key, api_name=api_name
-    )
+    return langchain_util.PromptWatchCallbacks(project_key=project_key, api_name=api_name)
 
 
-def test_llm_start(
-    pwc: langchain_util.PromptWatchCallbacks, mock_send_event: MagicMock
-):
+def test_llm_start(pwc: langchain_util.PromptWatchCallbacks, mock_send_event: MagicMock):
     run_id = uuid.uuid4()
     parent_run_id = uuid.uuid4()
-    prompt = PromptTemplate.from_template(
-        "What is a good name for a company that makes {product}?"
-    )
+    prompt = PromptTemplate.from_template("What is a good name for a company that makes {product}?")
     chain = LLMChain(
         llm=OpenAI(client=None, model="text-davinci-003"),
         prompt=prompt,
@@ -81,19 +80,17 @@ def test_llm_start(
     )
 
 
-def test_chat_model_start(
-    pwc: langchain_util.PromptWatchCallbacks, mock_send_event: MagicMock
-):
+def test_chat_model_start(pwc: langchain_util.PromptWatchCallbacks, mock_send_event: MagicMock):
     run_id = uuid.uuid4()
     parent_run_id = uuid.uuid4()
-    template_str = "You are a helpful assistant that translates {input_language} to {output_language}."
+    template_str = (
+        "You are a helpful assistant that translates {input_language} to {output_language}."
+    )
     system_message_prompt = SystemMessagePromptTemplate.from_template(template_str)
     human_template = "{text}"
     human_message_prompt = HumanMessagePromptTemplate.from_template(human_template)
 
-    template = ChatPromptTemplate.from_messages(
-        [system_message_prompt, human_message_prompt]
-    )
+    template = ChatPromptTemplate.from_messages([system_message_prompt, human_message_prompt])
     chain = LLMChain(
         llm=OpenAI(client=None, model="text-davinci-003"),
         prompt=template,
@@ -193,7 +190,9 @@ def test_chat_model_parent(
     mock_send_event.return_value = str(new_event_id)
     run_id = uuid.uuid4()
     parent_run_id = uuid.uuid4()
-    template_str = "You are a helpful assistant that translates {input_language} to {output_language}."
+    template_str = (
+        "You are a helpful assistant that translates {input_language} to {output_language}."
+    )
     system_message_prompt = SystemMessagePromptTemplate.from_template(template_str)
 
     template = ChatPromptTemplate.from_messages([system_message_prompt])
