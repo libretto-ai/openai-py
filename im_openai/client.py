@@ -35,6 +35,7 @@ async def send_event(
         "params": {},
         "prompt": prompt or {},
         "promptEventId": prompt_event_id,
+        "modelParameters": model_params or {},
     }
     if prompt_template_text is not None:
         if isinstance(prompt_template_text, str):
