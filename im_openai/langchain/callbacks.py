@@ -53,9 +53,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         api_name: str,
         *,
         template_text: Optional[str] = None,
-        template_chat: Optional[
-            List[Union[BaseMessagePromptTemplate, BaseMessage]]
-        ] = None,
+        template_chat: Optional[List[Union[BaseMessagePromptTemplate, BaseMessage]]] = None,
         valid_namespaces: Optional[List[str]] = None,
     ):
         """Initialize the callback handler
@@ -130,9 +128,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         # super hack to extract the prompt if it exists
         prompt_obj = serialized.get("kwargs", {}).get("prompt")
         if prompt_obj:
-            prompt_template = loads(
-                json.dumps(prompt_obj), valid_namespaces=self.valid_namespaces
-            )
+            prompt_template = loads(json.dumps(prompt_obj), valid_namespaces=self.valid_namespaces)
             if isinstance(prompt_template, BasePromptTemplate):
                 self.runs[run_id]["prompt_template"] = prompt_template
 
@@ -193,8 +189,11 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         if not run:
             logger.warning("on_llm_start Missing run %s", run_id)
             return
+        model_params = _extract_openai_params(serialized)
         run["prompts"] = prompts
         run["now"] = time.time()
+        run["model_params"] = model_params
+
         template_text = self._resolve_completion_template(run_id)
         # TODO: need to generate a new event id for each prompt
         asyncio.run(
@@ -204,6 +203,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
                 run["inputs"],
                 prompts,
                 parent_event_id=parent_run_id,
+                model_params=model_params,
             )
         )
 
@@ -225,11 +225,14 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             self._format_run_id(run_id),
             len(messages),
         )
+
         run = self._get_run(run_id)
         if not run:
             return
+        model_params = _extract_openai_params(serialized)
         run["messages"] = messages
         run["now"] = time.time()
+        run["model_params"] = model_params
 
         template_chat = self._resolve_chat_template(run_id)
         asyncio.run(
@@ -239,6 +242,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
                 run["inputs"],
                 messages,
                 parent_event_id=parent_run_id,
+                model_params=model_params,
             )
         )
 
@@ -264,8 +268,8 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             logger.warning("on_llm_end Missing run %s", run_id)
             return
         now = time.time()
+        model_params = run["model_params"]
         response_time = (now - run["now"]) * 1000
-
         if "messages" in run:
             template_chat = self._resolve_chat_template(run_id)
             asyncio.run(
@@ -274,24 +278,24 @@ class PromptWatchCallbacks(BaseCallbackHandler):
                     template_chat,
                     run["inputs"],
                     run["messages"],
+                    model_params,
                     response,
                     response_time,
                     parent_event_id=parent_run_id,
                 )
             )
         elif "prompts" in run:
-            template_text = (
-                self._get_run_info(run_id, "prompt_template_text") or self.template_text
-            )
+            template_text = self._get_run_info(run_id, "prompt_template_text") or self.template_text
             asyncio.run(
                 self._async_send_completion(
                     run_id,
                     template_text,
                     run["inputs"],
                     run["prompts"],
-                    response,
-                    response_time,
                     parent_event_id=parent_run_id,
+                    model_params=model_params,
+                    result=response,
+                    response_time=response_time,
                 )
             )
         else:
@@ -332,22 +336,21 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         template: List[Dict] | str | None,
         inputs: Dict,
         iterations: List[str] | List[List[BaseMessage]],
+        *,
         result: LLMResult | None = None,
         response_time: float | None = None,
         parent_event_id: UUID | None = None,
+        model_params: Dict | None = None,
         is_chat: bool = False,
     ):
         async with aiohttp.ClientSession() as session:
             generations_lists = result.generations if result else []
             for iteration, generations in zip_longest(iterations, generations_lists):
-                response_text = (
-                    "".join(g.text for g in generations) if generations else None
-                )
-                json_inputs = {
-                    key: format_langchain_value(value) for key, value in inputs.items()
-                }
-
+                response_text = "".join(g.text for g in generations) if generations else None
+                json_inputs = {key: format_langchain_value(value) for key, value in inputs.items()}
+                model_params = model_params.copy() if model_params else {}
                 if is_chat:
+                    model_params["modelType"] = "chat"
                     prompt = (
                         {"chat": format_chat_template(iteration)}  # type: ignore
                         if not template
@@ -356,6 +359,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
                     prompt_template_text = None
                     prompt_template_chat = template
                 else:
+                    model_params["modelType"] = "completion"
                     prompt = {"completion": iteration} if not template else None
                     prompt_template_text = template
                     prompt_template_chat = None
@@ -370,6 +374,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
                     prompt_template_chat=prompt_template_chat,  # type: ignore
                     prompt_params=json_inputs,
                     prompt_event_id=prompt_event_id,
+                    model_params=model_params,
                     chat_id=None,
                     response=response_text,
                     response_time=response_time,
@@ -385,6 +390,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         template_chats: List[Dict] | None,
         inputs: Dict,
         messages_list: List[List[BaseMessage]],
+        model_params: Dict | None = None,
         result: LLMResult | None = None,
         response_time: float | None = None,
         parent_event_id: UUID | None = None,
@@ -394,9 +400,10 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             template_chats,
             inputs,
             messages_list,
-            result,
-            response_time,
-            parent_event_id,
+            result=result,
+            response_time=response_time,
+            parent_event_id=parent_event_id,
+            model_params=model_params,
             is_chat=True,
         )
 
@@ -406,18 +413,21 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         template_text: str | None,
         inputs: Dict,
         prompts: List[str],
+        *,
+        parent_event_id: UUID | None = None,
+        model_params: Dict | None = None,
         result: LLMResult | None = None,
         response_time: float | None = None,
-        parent_event_id: UUID | None = None,
     ):
         await self._async_send(
             prompt_event_id,
             template_text,
             inputs,
             prompts,
-            result,
-            response_time,
+            result=result,
+            response_time=response_time,
             parent_event_id=parent_event_id,
+            model_params=model_params,
             is_chat=False,
         )
 
@@ -429,9 +439,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
 
     def _resolve_chat_template(self, run_id: UUID):
         """Resolve the template_chat into a list of dicts"""
-        template: Optional[BasePromptTemplate] = self._get_run_info(
-            run_id, "prompt_template"
-        )
+        template: Optional[BasePromptTemplate] = self._get_run_info(run_id, "prompt_template")
         inputs: Optional[Dict[str, Any]] = self._get_run_info(run_id, "inputs")
         template_chat = None
         if template and inputs:
@@ -440,16 +448,12 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             filtered_stub_inputs = {
                 k: v for k, v in stub_inputs.items() if k in template.input_variables
             }
-            if isinstance(
-                template, (BaseMessagePromptTemplate, BaseChatPromptTemplate)
-            ):
+            if isinstance(template, (BaseMessagePromptTemplate, BaseChatPromptTemplate)):
                 # We can't go through format_prompt because it doesn't like formatting the wrong types
                 template_chat = template.format_messages(**filtered_stub_inputs)
 
             elif isinstance(template, StringPromptTemplate):
-                template_chat = template.format_prompt(
-                    **filtered_stub_inputs
-                ).to_messages()
+                template_chat = template.format_prompt(**filtered_stub_inputs).to_messages()
             else:
                 raise ValueError(f"Unknown template type {type(template)}")
             template_chat = format_chat_template(template_chat)  # type: ignore
@@ -469,13 +473,15 @@ class PromptWatchCallbacks(BaseCallbackHandler):
                 # We can't go through format_prompt because it doesn't like formatting the wrong types
                 template_text = template.format(**filtered_stub_inputs)
             elif isinstance(template, StringPromptTemplate):
-                template_text = template.format_prompt(
-                    **filtered_stub_inputs
-                ).to_string()
+                template_text = template.format_prompt(**filtered_stub_inputs).to_string()
             else:
                 raise ValueError(f"Unknown template type {type(template)}")
             # template_text = format_chat_template(template_text)  # type: ignore
         return template_text
+
+
+def _extract_openai_params(serialized: Dict):
+    return {k: v for k, v in serialized["kwargs"].items() if isinstance(v, (int, float, str, bool))}
 
 
 def enable_prompt_watch_tracing(callbacks: PromptWatchCallbacks):

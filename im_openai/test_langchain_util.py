@@ -59,7 +59,7 @@ def test_llm_start(pwc: langchain_util.PromptWatchCallbacks, mock_send_event: Ma
     parent_run_id = uuid.uuid4()
     prompt = PromptTemplate.from_template("What is a good name for a company that makes {product}?")
     chain = LLMChain(
-        llm=OpenAI(client=None, model="text-davinci-003"),
+        llm=OpenAI(client=None, model="text-davinci-003", temperature=0.5),
         prompt=prompt,
     )
     run_llm_start(pwc, mock_send_event, run_id, parent_run_id, chain)
@@ -73,6 +73,7 @@ def test_llm_start(pwc: langchain_util.PromptWatchCallbacks, mock_send_event: Ma
         prompt_params={"product": "socks"},
         prompt_event_id=None,
         chat_id=None,
+        model_params={"modelType": "completion", "temperature": 0.5, "model": "text-davinci-003"},
         response=None,
         response_time=None,
         prompt=None,
@@ -92,7 +93,7 @@ def test_chat_model_start(pwc: langchain_util.PromptWatchCallbacks, mock_send_ev
 
     template = ChatPromptTemplate.from_messages([system_message_prompt, human_message_prompt])
     chain = LLMChain(
-        llm=OpenAI(client=None, model="text-davinci-003"),
+        llm=OpenAI(client=None, model="text-davinci-003", temperature=0.5),
         prompt=template,
     )
     template_args = {
@@ -127,6 +128,7 @@ def test_chat_model_start(pwc: langchain_util.PromptWatchCallbacks, mock_send_ev
         response=None,
         response_time=None,
         prompt=None,
+        model_params={"modelType": "chat", "temperature": 0.5, "model": "text-davinci-003"},
         parent_event_id=str(parent_run_id),
     )
 
@@ -141,7 +143,7 @@ def test_chat_model_template_no_vars(
     human_message = HumanMessage(content="Hello")
     template = ChatPromptTemplate.from_messages([system_message, human_message])
     chain = LLMChain(
-        llm=OpenAI(client=None, model="text-davinci-003"),
+        llm=OpenAI(client=None, model="text-davinci-003", temperature=0.5),
         prompt=template,
     )
     template_args = {}
@@ -175,6 +177,7 @@ def test_chat_model_template_no_vars(
                 {"content": "Hello", "role": "user"},
             ]
         },
+        model_params={"modelType": "chat", "temperature": 0.5, "model": "text-davinci-003"},
         parent_event_id=str(parent_run_id),
     )
 
@@ -197,14 +200,13 @@ def test_chat_model_parent(
 
     template = ChatPromptTemplate.from_messages([system_message_prompt])
     chain = LLMChain(
-        llm=OpenAI(client=None, model="text-davinci-003"),
+        llm=OpenAI(client=None, model="text-davinci-003", temperature=0.5),
         prompt=template,
     )
     template_args = {
         "input_language": "English",
         "output_language": "French",
     }
-
     run_chat_model_start(
         pwc,
         mock_send_event,
@@ -230,6 +232,7 @@ def test_chat_model_parent(
         chat_id=None,
         response=None,
         response_time=None,
+        model_params={"modelType": "chat", "temperature": 0.5, "model": "text-davinci-003"},
         prompt=None,
         parent_event_id=str(parent_run_id),
     )
@@ -254,6 +257,7 @@ def test_chat_model_parent(
         ],
         prompt_params=template_args,
         prompt_event_id=str(new_event_id),
+        model_params={"modelType": "chat", "temperature": 0.5, "model": "text-davinci-003"},
         chat_id=None,
         response="hi",
         response_time=ANY,
