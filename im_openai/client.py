@@ -23,6 +23,7 @@ async def send_event(
     response_time: float | None = None,
     prompt: Any | None = None,
     parent_event_id: str | None = None,
+    model_params: Dict | None = None,
 ) -> str | None:
     """Send an event to Imaginary Dev. Returns the id of the event that was added on the server."""
     PROMPT_REPORTING_URL = os.environ.get(
@@ -89,6 +90,7 @@ async def event_session(
     prompt_template_params: dict | None = None,
     prompt_event_id: str | None = None,
     parent_event_id: str | None = None,
+    model_params: Dict | None = None,
 ):
     """Context manager for sending an event to Imaginary Dev.
 
@@ -115,6 +117,7 @@ async def event_session(
             prompt_params=prompt_template_params,
             chat_id=chat_id,
             parent_event_id=parent_event_id,
+            model_params=model_params,
         )
         pending_events_sent.append(first_event_sent)
 
@@ -129,9 +132,10 @@ async def event_session(
                 prompt_template_chat=prompt_template_chat,
                 prompt_params=prompt_template_params,
                 chat_id=chat_id,
+                parent_event_id=parent_event_id,
+                model_params=model_params,
                 response=response,
                 response_time=response_time,
-                parent_event_id=parent_event_id,
             )
             pending_events_sent.append(second_event_sent)
 

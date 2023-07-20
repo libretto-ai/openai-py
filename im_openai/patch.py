@@ -27,12 +27,16 @@ def patch_openai_class(cls, get_prompt_template: Callable, get_result: Callable)
         if ip_project_key is None:
             return oldcreate(*args, **kwargs)
 
+        model_params = kwargs.copy()
         if "messages" in kwargs:
             template_params = {}
+            del model_params["messages"]
             for message in kwargs["messages"]:
                 if hasattr(message["content"], "template_args"):
                     template_params.update(message["content"].template_args)
             ip_template_params = template_params
+        if "prompt" in kwargs:
+            del model_params["prompt"]
 
         if ip_template_text is None and ip_template_chat is None:
             ip_template = get_prompt_template(*args, **kwargs)
@@ -49,6 +53,7 @@ def patch_openai_class(cls, get_prompt_template: Callable, get_result: Callable)
             chat_id=ip_chat_id,
             prompt_template_params=ip_template_params,
             prompt_event_id=ip_event_id,
+            model_params=model_params,
         ) as complete_event:
             response = oldcreate(*args, **kwargs)
             await complete_event(get_result(response))
