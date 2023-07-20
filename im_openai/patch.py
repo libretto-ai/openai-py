@@ -20,7 +20,7 @@ def patch_openai_class(cls, get_prompt_template: Callable, get_result: Callable)
         ip_template_chat: List | None = None,
         ip_template_params=None,
         ip_chat_id: str | None = None,
-        **kwargs
+        **kwargs,
     ):
         if ip_project_key is None:
             ip_project_key = os.environ.get("PROMPT_PROJECT_KEY")
@@ -28,15 +28,18 @@ def patch_openai_class(cls, get_prompt_template: Callable, get_result: Callable)
             return oldcreate(*args, **kwargs)
 
         model_params = kwargs.copy()
+        model_params["modelProvider"] = "openai"
         if "messages" in kwargs:
             template_params = {}
             del model_params["messages"]
+            model_params["modelType"] = "chat"
             for message in kwargs["messages"]:
                 if hasattr(message["content"], "template_args"):
                     template_params.update(message["content"].template_args)
             ip_template_params = template_params
         if "prompt" in kwargs:
             del model_params["prompt"]
+            model_params["modelType"] = "completion"
 
         if ip_template_text is None and ip_template_chat is None:
             ip_template = get_prompt_template(*args, **kwargs)
@@ -68,9 +71,7 @@ def patch_openai_class(cls, get_prompt_template: Callable, get_result: Callable)
     setattr(
         cls,
         "create",
-        classmethod(
-            lambda cls, *args, **kwds: asyncio.run(local_create(cls, *args, **kwds))
-        ),
+        classmethod(lambda cls, *args, **kwds: asyncio.run(local_create(cls, *args, **kwds))),
     )
     setattr(
         cls,

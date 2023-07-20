@@ -142,9 +142,7 @@ async def event_session(
 
         yield complete_event
         w = time.time()
-        pending_events_results = await asyncio.gather(
-            *pending_events_sent, return_exceptions=True
-        )
+        pending_events_results = await asyncio.gather(*pending_events_sent, return_exceptions=True)
         failed_events = [e for e in pending_events_results if isinstance(e, Exception)]
         if failed_events:
             warnings.warn(
