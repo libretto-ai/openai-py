@@ -54,7 +54,7 @@ async def send_event(
         # Do any langchain conversion, in case there are langchain objects inside
         try:
             # import will fail if langchain is not installed
-            from .langchain_util import format_chat_template
+            from .langchain import format_chat_template
 
             prompt_template_chat = format_chat_template(prompt_template_chat)
         except ImportError:
