@@ -8,7 +8,7 @@ from openai import ChatCompletion
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-from im_openai import langchain_util
+from im_openai import langchain as langchain_util
 
 logging.basicConfig(stream=sys.stderr)
 logger = logging.getLogger("im_openai")
