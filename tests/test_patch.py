@@ -37,15 +37,18 @@ def test_chat_completion(mock_chat, mock_send_event: MagicMock, do_patch_openai)
     api_name = "test-from-apitest-chat"
     event_id = uuid.uuid4()
     parent_event_id = uuid.uuid4()
+    chat_id = uuid.uuid4()
     openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         messages=chat_messages,
+        temperature=0.4,
         ip_project_key=project_key,
         ip_api_name=api_name,
         ip_template_chat=chat_template,
         ip_template_params=ip_template_params,
         ip_parent_event_id=parent_event_id,
         ip_event_id=event_id,
+        ip_chat_id=chat_id,
     )
 
     assert tuple(mock_send_event.call_args_list[0]) == (
@@ -60,9 +63,14 @@ def test_chat_completion(mock_chat, mock_send_event: MagicMock, do_patch_openai)
                 {"role": "user", "content": "Send a greeting to our new user named {name}"}
             ],
             prompt_params=ip_template_params,
-            chat_id=None,
+            chat_id=chat_id,
             parent_event_id=parent_event_id,
-            model_params={"model": "gpt-3.5-turbo", "modelProvider": "openai", "modelType": "chat"},
+            model_params={
+                "model": "gpt-3.5-turbo",
+                "modelProvider": "openai",
+                "modelType": "chat",
+                "temperature": 0.4,
+            },
         ),
     )
     assert tuple(mock_send_event.call_args_list[1]) == (
@@ -77,9 +85,14 @@ def test_chat_completion(mock_chat, mock_send_event: MagicMock, do_patch_openai)
                 {"role": "user", "content": "Send a greeting to our new user named {name}"}
             ],
             prompt_params=ip_template_params,
-            chat_id=None,
+            chat_id=chat_id,
             parent_event_id=parent_event_id,
-            model_params={"model": "gpt-3.5-turbo", "modelProvider": "openai", "modelType": "chat"},
+            model_params={
+                "model": "gpt-3.5-turbo",
+                "modelProvider": "openai",
+                "modelType": "chat",
+                "temperature": 0.4,
+            },
             response=ANY,
             response_time=ANY,
         ),
