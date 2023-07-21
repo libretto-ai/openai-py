@@ -2,7 +2,7 @@ import asyncio
 import os
 from typing import Callable, List
 
-from openai import ChatCompletion, Completion
+import openai
 
 from .client import event_session
 
@@ -37,7 +37,9 @@ def patch_openai_class(cls, get_prompt_template: Callable, get_result: Callable)
             for message in kwargs["messages"]:
                 if hasattr(message["content"], "template_args"):
                     template_params.update(message["content"].template_args)
-            ip_template_params = template_params
+            if ip_template_params is None:
+                ip_template_params = {}
+            ip_template_params.update(template_params)
         if "prompt" in kwargs:
             del model_params["prompt"]
             model_params["modelType"] = "completion"
@@ -97,7 +99,7 @@ def patch_openai():
         return prompt
 
     unpatch_completion = patch_openai_class(
-        Completion, get_completion_prompt, lambda x: x["choices"][0]["text"]
+        openai.Completion, get_completion_prompt, lambda x: x["choices"][0]["text"]
     )
 
     def get_chat_prompt(*args, messages=None, **kwargs):
@@ -106,7 +108,7 @@ def patch_openai():
         return prompt_text
 
     unpatch_chat = patch_openai_class(
-        ChatCompletion,
+        openai.ChatCompletion,
         get_chat_prompt,
         lambda x: x["choices"][0]["message"]["content"],
     )
