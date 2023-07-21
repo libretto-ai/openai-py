@@ -87,11 +87,11 @@ async def event_session(
     api_name: str | None,
     prompt_template_text: str | None,
     prompt_template_chat: List | None,
+    model_params: Dict | None = None,
     chat_id: str | None = None,
     prompt_template_params: dict | None = None,
     prompt_event_id: str | None = None,
     parent_event_id: str | None = None,
-    model_params: Dict | None = None,
 ):
     """Context manager for sending an event to Imaginary Dev.
 
