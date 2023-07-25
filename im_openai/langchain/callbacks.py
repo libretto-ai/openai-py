@@ -22,8 +22,8 @@ from langchain.schema import AgentAction, AgentFinish, BaseMessage, LLMResult
 
 from im_openai import client
 
+from . import util
 from .patch import loads
-from .util import format_chat_template, format_langchain_value, make_stub_inputs
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +73,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         if template_text is not None:
             self.template_text = template_text
         elif template_chat is not None:
-            self.template_chat = format_chat_template(template_chat)
+            self.template_chat = util.format_chat_template(template_chat)
         else:
             self.template_chat = None
         self.parent_run_ids = {}
@@ -233,8 +233,8 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         run["messages"] = messages
         run["now"] = time.time()
         run["model_params"] = model_params
-
         template_chat = self._resolve_chat_template(run_id)
+
         asyncio.run(
             self._async_send_chat(
                 run_id,
@@ -347,12 +347,14 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             generations_lists = result.generations if result else []
             for iteration, generations in zip_longest(iterations, generations_lists):
                 response_text = "".join(g.text for g in generations) if generations else None
-                json_inputs = {key: format_langchain_value(value) for key, value in inputs.items()}
+                json_inputs = {
+                    key: util.format_langchain_value(value) for key, value in inputs.items()
+                }
                 model_params = model_params.copy() if model_params else {}
                 if is_chat:
                     model_params["modelType"] = "chat"
                     prompt = (
-                        {"chat": format_chat_template(iteration)}  # type: ignore
+                        {"chat": util.format_chat_template(iteration)}  # type: ignore
                         if not template
                         else None
                     )
@@ -443,20 +445,9 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         inputs: Optional[Dict[str, Any]] = self._get_run_info(run_id, "inputs")
         template_chat = None
         if template and inputs:
-            stub_inputs = make_stub_inputs(inputs)
-            # Some of the templat formatters get upset if you pass in extra keys
-            filtered_stub_inputs = {
-                k: v for k, v in stub_inputs.items() if k in template.input_variables
-            }
-            if isinstance(template, (BaseMessagePromptTemplate, BaseChatPromptTemplate)):
-                # We can't go through format_prompt because it doesn't like formatting the wrong types
-                template_chat = template.format_messages(**filtered_stub_inputs)
-
-            elif isinstance(template, StringPromptTemplate):
-                template_chat = template.format_prompt(**filtered_stub_inputs).to_messages()
-            else:
-                raise ValueError(f"Unknown template type {type(template)}")
-            template_chat = format_chat_template(template_chat)  # type: ignore
+            messages = util.format_chat_template_with_inputs(template, inputs)
+            json_messages = util.format_chat_template(messages)  # type: ignore
+            template_chat = util.replace_array_variables_with_placeholders(json_messages, inputs)
         return template_chat
 
     def _resolve_completion_template(self, run_id: UUID):
@@ -465,17 +456,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         inputs = self._get_run_info(run_id, "inputs")
         template_text: str | None = None
         if template and inputs:
-            stub_inputs = make_stub_inputs(inputs)
-            filtered_stub_inputs = {
-                k: v for k, v in stub_inputs.items() if k in template.input_variables
-            }
-            if isinstance(template, BaseChatPromptTemplate):
-                # We can't go through format_prompt because it doesn't like formatting the wrong types
-                template_text = template.format(**filtered_stub_inputs)
-            elif isinstance(template, StringPromptTemplate):
-                template_text = template.format_prompt(**filtered_stub_inputs).to_string()
-            else:
-                raise ValueError(f"Unknown template type {type(template)}")
+            template_text = util.format_completion_template_with_inputs(template, inputs)
             # template_text = format_chat_template(template_text)  # type: ignore
         return template_text
 
