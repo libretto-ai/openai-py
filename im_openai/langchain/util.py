@@ -39,7 +39,11 @@ def format_langchain_value(value: Any) -> Any:
         return value.format(**inputs)
     if isinstance(value, BaseMessage):
         return format_chat_template([value])[0]
-    return format_chat_template(value)
+    if value is None:
+        return None
+
+    logger.warn("Cannot format value of type %s: %s", type(value), value)
+    return None
 
 
 def format_chat_template(
@@ -126,6 +130,8 @@ def make_stub_inputs(inputs: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def make_stub_inputs_raw(inputs: Dict[str, Any], prefix: str):
+    if inputs is None:
+        return None
     if isinstance(inputs, dict):
         dict_prefix = f"{prefix}." if prefix else ""
         return {k: make_stub_inputs_raw(v, f"{dict_prefix}{k}") for k, v in inputs.items()}

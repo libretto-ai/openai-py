@@ -233,8 +233,8 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         run["messages"] = messages
         run["now"] = time.time()
         run["model_params"] = model_params
-
         template_chat = self._resolve_chat_template(run_id)
+
         asyncio.run(
             self._async_send_chat(
                 run_id,
@@ -445,8 +445,9 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         inputs: Optional[Dict[str, Any]] = self._get_run_info(run_id, "inputs")
         template_chat = None
         if template and inputs:
-            template_chat = util.format_chat_template_with_inputs(template, inputs)
-            template_chat = util.format_chat_template(template_chat)  # type: ignore
+            messages = util.format_chat_template_with_inputs(template, inputs)
+            json_messages = util.format_chat_template(messages)  # type: ignore
+            template_chat = util.replace_array_variables_with_placeholders(json_messages, inputs)
         return template_chat
 
     def _resolve_completion_template(self, run_id: UUID):
