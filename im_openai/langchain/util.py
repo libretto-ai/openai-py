@@ -1,6 +1,7 @@
 # Utilities for dealing with langchain
 
 import logging
+import re
 from contextlib import asynccontextmanager, contextmanager
 from typing import Any, Dict, List, Union, cast
 
@@ -43,12 +44,49 @@ def format_langchain_value(value: Any) -> Any:
 
 def format_chat_template(
     messages: List[Union[BaseMessagePromptTemplate, BaseChatPromptTemplate, BaseMessage, List[Any]]]
-) -> List[Dict]:
+) -> List[Dict[str, Any]]:
     """Format a chat template into something that Imaginary Programming can deal with"""
     lists = [_convert_message_to_dicts(message) for message in messages]
     # Flatten the list of lists
-    flattened = [item for sublist in lists for item in sublist]
-    return flattened
+    return [item for sublist in lists for item in sublist]
+
+
+def replace_array_variables_with_placeholders(raw_messages: List[dict], inputs: Dict[str, Any]):
+    result = []
+    next_index = 0
+    for index, msg in enumerate(raw_messages):
+        if next_index > index:
+            continue
+
+        if m := re.match(r"\{([a-zA-Z0-9_]+)\[0\].role\}", msg["role"]):
+            var_name = m.group(1)
+            input_list = inputs.get(var_name)
+            if not isinstance(input_list, list):
+                raise ValueError(f"Variable {var_name} is not a list")
+
+            input_message_count = len(input_list)
+            candidate_messages = raw_messages[index : index + input_message_count]
+
+            # make sure we have enough messages in the output
+            have_enough_messages = len(candidate_messages) == input_message_count
+            all_messages_match_template = all(
+                is_templated_chat_message(msg, var_name, candidate_msg_index)
+                for candidate_msg_index, msg in enumerate(candidate_messages)
+            )
+            if have_enough_messages and all_messages_match_template:
+                result.append({"role": "chat_history", "content": f"{{{var_name}}}"})
+                next_index = index + input_message_count
+                continue
+
+        result.append(msg)
+    return result
+
+
+def is_templated_chat_message(msg: Dict[str, str], var_name: str, index: int) -> bool:
+    return (
+        msg["role"] == f"{{{var_name}[{index}].role}}"
+        and msg["content"] == f"{{{var_name}[{index}].content}}"
+    )
 
 
 def _convert_message_to_dicts(
@@ -83,16 +121,14 @@ def _convert_message_to_dicts(
         raise ValueError(f"Got unknown type {type(message)}: {message}")
 
 
-def make_stub_inputs(inputs: Dict[str, Any], raw_lists=False) -> Dict[str, Any]:
-    return make_stub_inputs_raw(inputs, "", raw_lists)  # type: ignore
+def make_stub_inputs(inputs: Dict[str, Any]) -> Dict[str, Any]:
+    return make_stub_inputs_raw(inputs, "")  # type: ignore
 
 
-def make_stub_inputs_raw(inputs: Any, prefix: str, raw_lists: bool):
+def make_stub_inputs_raw(inputs: Dict[str, Any], prefix: str):
     if isinstance(inputs, dict):
         dict_prefix = f"{prefix}." if prefix else ""
-        return {
-            k: make_stub_inputs_raw(v, f"{dict_prefix}{k}", raw_lists) for k, v in inputs.items()
-        }
+        return {k: make_stub_inputs_raw(v, f"{dict_prefix}{k}") for k, v in inputs.items()}
     if isinstance(inputs, (str, int, float, bool)):
         return f"{{{prefix}}}"
     if isinstance(inputs, list):
@@ -111,21 +147,15 @@ def make_stub_inputs_raw(inputs: Any, prefix: str, raw_lists: bool):
         # return MessagesPlaceholder(
         #     variable_name=prefix
         # )
-        if raw_lists:
-            return [
-                make_stub_inputs_raw(v, f"{prefix}[{i}]", raw_lists) for i, v in enumerate(inputs)
-            ]
-        return [ChatMessage(content=f"{{{prefix}}}", role="chat_history")]
+        return [make_stub_inputs_raw(v, f"{prefix}[{i}]") for i, v in enumerate(inputs)]
     if isinstance(inputs, tuple):
-        return tuple(
-            make_stub_inputs_raw(v, f"{prefix}[{i}]", raw_lists) for i, v in enumerate(inputs)
-        )
-    resolved = make_stub_inputs_raw(format_langchain_value(inputs), prefix, raw_lists)
+        return tuple(make_stub_inputs_raw(v, f"{prefix}[{i}]") for i, v in enumerate(inputs))
+    resolved = make_stub_inputs_raw(format_langchain_value(inputs), prefix)
     return resolved
 
 
 def format_completion_template_with_inputs(template: BasePromptTemplate, inputs: Dict[str, Any]):
-    stub_inputs = make_stub_inputs(inputs, raw_lists=True)
+    stub_inputs = make_stub_inputs(inputs)
     filtered_stub_inputs = {k: v for k, v in stub_inputs.items() if k in template.input_variables}
     if isinstance(template, BaseChatPromptTemplate):
         # We can't go through format_prompt because it doesn't like formatting the wrong types
@@ -138,7 +168,7 @@ def format_completion_template_with_inputs(template: BasePromptTemplate, inputs:
 
 
 def format_chat_template_with_inputs(template, inputs):
-    stub_inputs = make_stub_inputs(inputs, raw_lists=True)
+    stub_inputs = make_stub_inputs(inputs)
     # Some of the templat formatters get upset if you pass in extra keys
     filtered_stub_inputs = {k: v for k, v in stub_inputs.items() if k in template.input_variables}
     if isinstance(template, (BaseMessagePromptTemplate, BaseChatPromptTemplate)):
@@ -148,4 +178,6 @@ def format_chat_template_with_inputs(template, inputs):
         template_chat = template.format_prompt(**filtered_stub_inputs).to_messages()
     else:
         raise ValueError(f"Unknown template type {type(template)}")
+
+    template_chat = format_chat_template(template_chat)  # type: ignore
     return template_chat
