@@ -1,5 +1,6 @@
 # Utilities for dealing with langchain
 
+import dataclasses
 import logging
 import re
 from contextlib import asynccontextmanager, contextmanager
@@ -39,11 +40,13 @@ def format_langchain_value(value: Any) -> Any:
         return value.format(**inputs)
     if isinstance(value, BaseMessage):
         return format_chat_template([value])[0]
+    if dataclasses.is_dataclass(value):
+        return dataclasses.asdict(value)
     if value is None:
         return None
 
     logger.warn("Cannot format value of type %s: %s", type(value), value)
-    return None
+    return value
 
 
 def format_chat_template(
@@ -119,10 +122,25 @@ def _convert_message_to_dicts(
         vars_as_templates = {v: f"{{{v}}}" for v in vars}
         formatted_messages = message.format_messages(**vars_as_templates)
         return format_chat_template(formatted_messages)  # type: ignore
+    elif isinstance(message, FakeInternalMessage):
+        return [
+            {
+                "role": message.role,
+                "content": message.content,
+            }
+        ]
     elif isinstance(message, dict):
         return [message]
     else:
         raise ValueError(f"Got unknown type {type(message)}: {message}")
+
+
+class FakeInternalMessage(BaseMessage):
+    role: str
+
+    @property
+    def type(self) -> str:
+        return "foo"
 
 
 def make_stub_inputs(inputs: Dict[str, Any]) -> Dict[str, Any]:
@@ -135,29 +153,23 @@ def make_stub_inputs_raw(inputs: Dict[str, Any], prefix: str):
     if isinstance(inputs, dict):
         dict_prefix = f"{prefix}." if prefix else ""
         return {k: make_stub_inputs_raw(v, f"{dict_prefix}{k}") for k, v in inputs.items()}
-    if isinstance(inputs, (str, int, float, bool)):
+    if isinstance(inputs, (str, int, float, bool)) or inputs is None:
         return f"{{{prefix}}}"
     if isinstance(inputs, list):
-        # TODO: figure out a way to collapse lists. Right now this will create stuff like:
-        # [
-        #     {
-        #         "role": "{agent_history[0].role}",
-        #         "content": "{agent_history[0].content}",
-        #     },
-        #     {
-        #         "role": "{agent_history[1].role}",
-        #         "content": "{agent_history[1].content}",
-        #     },
-        # ]
-        # return [f"{{{prefix}}}"] * len(inputs)
-        # return MessagesPlaceholder(
-        #     variable_name=prefix
-        # )
         return [make_stub_inputs_raw(v, f"{prefix}[{i}]") for i, v in enumerate(inputs)]
     if isinstance(inputs, tuple):
         return tuple(make_stub_inputs_raw(v, f"{prefix}[{i}]") for i, v in enumerate(inputs))
-    resolved = make_stub_inputs_raw(format_langchain_value(inputs), prefix)
-    return resolved
+    if isinstance(inputs, ChatMessage):
+        return {
+            "role": make_stub_inputs_raw(inputs.role, f"{{{prefix}.role}}"),
+            "content": make_stub_inputs_raw(inputs.content, f"{{{prefix}.content}}"),
+        }
+    if isinstance(inputs, BaseMessage):
+        return FakeInternalMessage(
+            role=f"{{{prefix}.role}}",
+            content=f"{{{prefix}.content}}",
+        )
+    return inputs
 
 
 def format_completion_template_with_inputs(template: BasePromptTemplate, inputs: Dict[str, Any]):
