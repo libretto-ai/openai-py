@@ -465,8 +465,9 @@ def _extract_openai_params(serialized: Dict):
     return {k: v for k, v in serialized["kwargs"].items() if isinstance(v, (int, float, str, bool))}
 
 
-def enable_prompt_watch_tracing(callbacks: PromptWatchCallbacks):
+def enable_prompt_watch_tracing(*args, **kwargs):
     """Manually enable prompt watch tracing, returns the previous callback handler to be used when disabling"""
+    callbacks = PromptWatchCallbacks(*args, **kwargs)
     old_tracing_v2_callback = tracing_v2_callback_var.get()
     tracing_v2_callback_var.set(cast(Any, callbacks))
     return old_tracing_v2_callback
@@ -489,7 +490,6 @@ def prompt_watch_tracing(*args, **kwargs):
             chain = LLMChain(llm=...)
             chain.run("Hello world", inputs={"name": "world"})
     """
-    callbacks = PromptWatchCallbacks(*args, **kwargs)
-    old_tracing_v2_callback = enable_prompt_watch_tracing(callbacks)
+    old_tracing_v2_callback = enable_prompt_watch_tracing(*args, **kwargs)
     yield
     disable_prompt_watch_tracing(old_tracing_v2_callback)
