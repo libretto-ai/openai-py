@@ -14,64 +14,68 @@
 
 ## 0.2.0 (2023-06-26)
 
-- add explicit support for passing the "prompt template text"
+-   add explicit support for passing the "prompt template text"
 
 ## 0.3.0 (2023-06-28)
 
-- add support for chat templates (as objects instead of arrays)
+-   add support for chat templates (as objects instead of arrays)
 
 ## 0.4.0 (2023-06-29)
 
-- switch event reporting to be async / non-blocking
+-   switch event reporting to be async / non-blocking
 
 ## 0.4.1 (2023-06-29)
 
-- add utility for formatting langchain messages
+-   add utility for formatting langchain messages
 
 ## 0.4.2 (2023-06-29)
 
-- remove stray breakpoint
+-   remove stray breakpoint
 
 ## 0.4.3 (2023-06-30)
 
-- pass along chat_id
-- attempt to auto-convert langchain prompt templates
+-   pass along chat_id
+-   attempt to auto-convert langchain prompt templates
 
 ## 0.4.4 (2023-06-30)
 
-- remove stray prints
+-   remove stray prints
 
 ## 0.5.0 (2023-07-06)
 
-- Add langchain callbacks handlers
+-   Add langchain callbacks handlers
 
 ## 0.6.0 (2023-07-10)
 
-- Handle duplicate callbacks, agents, etc
+-   Handle duplicate callbacks, agents, etc
 
 ## 0.6.1 (2023-07-12)
 
-- Fix prompt retrieval in deep chains
+-   Fix prompt retrieval in deep chains
 
 ## 0.6.2 (2023-07-13)
 
-- Handle cases where input values are not strings
+-   Handle cases where input values are not strings
 
 ## 0.6.3 (2023-07-18)
 
-- Better support for server-generated event ids 
-  (pre-llm sends event, post-llm re-uses the same id)
-- more tests for different kinds of templates
+-   Better support for server-generated event ids
+    (pre-llm sends event, post-llm re-uses the same id)
+-   more tests for different kinds of templates
 
 ## 0.6.4
 
-- include temporary patched version of loads()
+-   include temporary patched version of loads()
 
 ## 0.7.0
 
-- breaking change: move im_openai.langchain_util to im_openai.langchain
-- add support for injecting callbacks into all langchain calls using tracing hooks
+-   breaking change: move im_openai.langchain_util to im_openai.langchain
+-   add support for injecting callbacks into all langchain calls using tracing hooks
 
 ## 0.7.1
 
-- Pass along model params to the server
+-   Pass along model params to the server
+
+## 0.7.3
+
+-   add explicit support for api_key
