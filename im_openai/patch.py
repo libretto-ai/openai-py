@@ -14,6 +14,7 @@ def patch_openai_class(cls, get_prompt_template: Callable, get_result: Callable)
         cls,
         *args,
         ip_project_key=None,
+        ip_api_key=None,
         ip_api_name: str | None = None,
         ip_event_id: str | None = None,
         ip_template_text: str | None = None,
@@ -25,7 +26,9 @@ def patch_openai_class(cls, get_prompt_template: Callable, get_result: Callable)
     ):
         if ip_project_key is None:
             ip_project_key = os.environ.get("PROMPT_PROJECT_KEY")
-        if ip_project_key is None:
+        if ip_api_key is None:
+            ip_api_key = os.environ.get("PROMPT_API_KEY")
+        if ip_project_key is None and ip_api_key is None:
             return oldcreate(*args, **kwargs)
 
         model_params = kwargs.copy()
@@ -53,6 +56,7 @@ def patch_openai_class(cls, get_prompt_template: Callable, get_result: Callable)
 
         async with event_session(
             project_key=ip_project_key,
+            api_key=ip_api_key,
             api_name=ip_api_name,
             model_params=model_params,
             prompt_template_text=ip_template_text,

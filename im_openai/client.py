@@ -12,6 +12,7 @@ import aiohttp
 async def send_event(
     session: aiohttp.ClientSession,
     project_key: str,
+    api_key: str | None,
     *,
     api_name: str | None,
     prompt_event_id: str | None,
@@ -30,13 +31,18 @@ async def send_event(
         "PROMPT_REPORTING_URL", "https://app.imaginary.dev/api/event"
     )
     event = {
-        "projectKey": project_key,
         "apiName": api_name,
         "params": {},
         "prompt": prompt or {},
         "promptEventId": prompt_event_id,
         "modelParameters": model_params or {},
     }
+
+    if project_key is not None:
+        event["projectKey"] = project_key
+    if api_key is not None:
+        event["apiKey"] = api_key
+
     if prompt_template_text is not None:
         if isinstance(prompt_template_text, str):
             # first default template to just the raw text
@@ -84,6 +90,7 @@ async def send_event(
 @asynccontextmanager
 async def event_session(
     project_key: str,
+    api_key: str | None,
     api_name: str | None,
     prompt_template_text: str | None,
     prompt_template_chat: List | None,
@@ -111,6 +118,7 @@ async def event_session(
         first_event_sent = send_event(
             session=session,
             project_key=project_key,
+            api_key=api_key,
             api_name=api_name,
             prompt_event_id=prompt_event_id,
             prompt_template_text=prompt_template_text,
@@ -127,6 +135,7 @@ async def event_session(
             second_event_sent = send_event(
                 session=session,
                 project_key=project_key,
+                api_key=api_key,
                 api_name=api_name,
                 prompt_event_id=prompt_event_id,
                 prompt_template_text=prompt_template_text,
