@@ -33,7 +33,7 @@ def test_chat_completion(mock_chat, mock_send_event: MagicMock, do_patch_openai)
 
     chat_messages = [{"role": "user", "content": prompt_text}]
     chat_template = [{"role": "user", "content": template}]
-    project_key = "alecf-local-playground"
+    api_key = "alecf-local-playground"
     api_name = "test-from-apitest-chat"
     event_id = uuid.uuid4()
     parent_event_id = uuid.uuid4()
@@ -42,7 +42,7 @@ def test_chat_completion(mock_chat, mock_send_event: MagicMock, do_patch_openai)
         model="gpt-3.5-turbo",
         messages=chat_messages,
         temperature=0.4,
-        ip_project_key=project_key,
+        ip_api_key=api_key,
         ip_api_name=api_name,
         ip_template_chat=chat_template,
         ip_template_params=ip_template_params,
@@ -55,8 +55,9 @@ def test_chat_completion(mock_chat, mock_send_event: MagicMock, do_patch_openai)
         (),
         dict(
             session=ANY,
-            project_key=project_key,
+            api_key=api_key,
             api_name=api_name,
+            project_key=None,
             prompt_event_id=event_id,
             prompt_template_text=None,
             prompt_template_chat=[
@@ -77,8 +78,9 @@ def test_chat_completion(mock_chat, mock_send_event: MagicMock, do_patch_openai)
         (),
         dict(
             session=ANY,
-            project_key="alecf-local-playground",
+            api_key=api_key,
             api_name="test-from-apitest-chat",
+            project_key=None,
             prompt_event_id=event_id,
             prompt_template_text=None,
             prompt_template_chat=[

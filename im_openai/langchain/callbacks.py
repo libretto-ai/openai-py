@@ -31,7 +31,8 @@ from functools import wraps
 
 
 class PromptWatchCallbacks(BaseCallbackHandler):
-    project_key: str
+    api_key: str
+    project_key: str | None
     api_name: str
 
     template_chat: List[Dict] | None
@@ -49,9 +50,10 @@ class PromptWatchCallbacks(BaseCallbackHandler):
 
     def __init__(
         self,
-        project_key: str,
+        api_key: str,
         api_name: str,
         *,
+        project_key: Optional[str] = None,
         template_text: Optional[str] = None,
         template_chat: Optional[List[Union[BaseMessagePromptTemplate, BaseMessage]]] = None,
         valid_namespaces: Optional[List[str]] = None,
@@ -59,14 +61,16 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         """Initialize the callback handler
 
         Args:
+            api_key (str): The Imaginary Programming API key
             project_key (str): The Imaginary Programming project key
             api_name (str): The Imaginary Programming API name
             template_text (Optional[str], optional): The template to use for completion events. Defaults to None.
             template_chat (Optional[List[Union[BaseMessagePromptTemplate, BaseMessage]]], optional): The template to use for chat events. Defaults to None.
         """
-        self.project_key = project_key or os.environ.get("PROMPT_PROJECT_KEY", "")
-        if not self.project_key:
-            raise ValueError("project_key must be provided")
+        self.project_key = project_key or os.environ.get("PROMPT_PROJECT_KEY", None)
+        self.api_key = api_key or os.environ.get("PROMPT_API_KEY", "")
+        if not self.api_key:
+            raise ValueError("api_key must be provided")
         self.valid_namespaces = valid_namespaces
         self.runs = {}
         self.api_name = api_name
@@ -371,6 +375,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
                 id = await client.send_event(
                     session,
                     project_key=self.project_key,
+                    api_key=self.api_key,
                     api_name=self.api_name,
                     prompt_template_text=prompt_template_text,  # type: ignore
                     prompt_template_chat=prompt_template_chat,  # type: ignore
@@ -486,7 +491,7 @@ def prompt_watch_tracing(*args, **kwargs):
 
     usage::
 
-        with prompt_watch_tracing(project_key, api_name, template_text="Hello {name}"):
+        with prompt_watch_tracing(api_key, api_name, template_text="Hello {name}"):
             chain = LLMChain(llm=...)
             chain.run("Hello world", inputs={"name": "world"})
     """

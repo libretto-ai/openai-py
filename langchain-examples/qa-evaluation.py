@@ -24,7 +24,7 @@ logger = logging.getLogger("im_openai")
 logger.setLevel(logging.INFO)
 
 callbacks = langchain_util.PromptWatchCallbacks(
-    project_key="example-langchain-simple-qa", api_name="qa-evaluation"
+    api_key="f1ed34de-5069-48f9-a513-6095c45e3a30", api_name="qa-evaluation"
 )
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 loader = TextLoader(os.path.join(os.path.dirname(__file__), "state_of_the_union.txt"))

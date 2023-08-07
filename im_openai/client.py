@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 import time
 import uuid
@@ -8,12 +9,14 @@ from typing import Any, Dict, List, TypedDict
 
 import aiohttp
 
+logger = logging.getLogger(__name__)
+
 
 async def send_event(
     session: aiohttp.ClientSession,
-    project_key: str,
     api_key: str | None,
     *,
+    project_key: str | None = None,
     api_name: str | None,
     prompt_event_id: str | None,
     prompt_template_text: str | None,
@@ -38,10 +41,15 @@ async def send_event(
         "modelParameters": model_params or {},
     }
 
+    logger.debug(f"Sending event to {PROMPT_REPORTING_URL}")
     if project_key is not None:
         event["projectKey"] = project_key
     if api_key is not None:
         event["apiKey"] = api_key
+
+    if not api_key and not project_key:
+        logger.warn("No project key or api key set, not sending event")
+        return
 
     if prompt_template_text is not None:
         if isinstance(prompt_template_text, str):
@@ -89,7 +97,7 @@ async def send_event(
 
 @asynccontextmanager
 async def event_session(
-    project_key: str,
+    project_key: str | None,
     api_key: str | None,
     api_name: str | None,
     prompt_template_text: str | None,

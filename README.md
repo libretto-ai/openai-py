@@ -14,7 +14,7 @@ monitor
 
 ## Features
 
--   Patches the openai library to allow user to set an ip_project_key
+-   Patches the openai library to allow user to set an ip_api_key and ip_api_name
     for each request
 -   Works out of the box with langchain
 
@@ -30,7 +30,7 @@ from im_openai import patch_openai
 patch_openai()
 ```
 
-Then, set the `ip_project_key` and `ip_api_name` for each request:
+Then, set the `ip_api_key` and `ip_api_name` for each request:
 
 ```python
 import openai
@@ -38,7 +38,7 @@ import openai
 completion = openai.ChatCompletion.create(
     engine="davinci",
     prompt="Show me an emoji that matches the sport: soccer",
-    ip_project_key="emojification",
+    ip_api_key="6a0ea966-8e4d-45ef-b7bf-9577ab73a60d",
     ip_api_name="sport-emoji",
     ip_template_params={"sport": "soccer"},
     ip_template_chat=[{"role": "user", "content": "Show me an emoji that matches the sport: {sport}" }]

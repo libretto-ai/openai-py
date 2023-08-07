@@ -24,7 +24,7 @@ from langchain.schema import Generation, HumanMessage, LLMResult, SystemMessage
 
 from im_openai import langchain as langchain_util
 
-project_key = "abc"
+api_key = "abc"
 api_name = "def"
 
 
@@ -51,7 +51,7 @@ def mock_event_loop():
 
 @pytest.fixture()
 def pwc():
-    return langchain_util.PromptWatchCallbacks(project_key=project_key, api_name=api_name)
+    return langchain_util.PromptWatchCallbacks(api_key=api_key, api_name=api_name)
 
 
 def test_llm_start(pwc: langchain_util.PromptWatchCallbacks, mock_send_event: MagicMock):
@@ -66,8 +66,9 @@ def test_llm_start(pwc: langchain_util.PromptWatchCallbacks, mock_send_event: Ma
 
     mock_send_event.assert_called_once_with(
         ANY,
-        project_key=project_key,
+        api_key=api_key,
         api_name=api_name,
+        project_key=None,
         prompt_template_text="What is a good name for a company that makes {product}?",
         prompt_template_chat=None,
         prompt_params={"product": "socks"},
@@ -112,8 +113,9 @@ def test_chat_model_start(pwc: langchain_util.PromptWatchCallbacks, mock_send_ev
 
     mock_send_event.assert_called_once_with(
         ANY,
-        project_key=project_key,
+        api_key=api_key,
         api_name=api_name,
+        project_key=None,
         prompt_template_text=None,
         prompt_template_chat=[
             {
@@ -158,8 +160,9 @@ def test_chat_model_template_no_vars(
 
     mock_send_event.assert_called_once_with(
         ANY,
-        project_key=project_key,
+        api_key=api_key,
         api_name=api_name,
+        project_key=None,
         prompt_template_text=None,
         prompt_template_chat=None,
         prompt_params=template_args,
@@ -218,8 +221,9 @@ def test_chat_model_parent(
 
     mock_send_event.assert_called_once_with(
         ANY,
-        project_key=project_key,
+        api_key=api_key,
         api_name=api_name,
+        project_key=None,
         prompt_template_text=None,
         prompt_template_chat=[
             {
@@ -246,8 +250,9 @@ def test_chat_model_parent(
 
     mock_send_event.assert_called_once_with(
         ANY,
-        project_key=project_key,
+        api_key=api_key,
         api_name=api_name,
+        project_key=None,
         prompt_template_text=None,
         prompt_template_chat=[
             {

@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import logging
 import os
 import sys
 
@@ -7,6 +8,10 @@ import openai
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 import im_openai
+
+imlogger = logging.getLogger("im_openai")
+imlogger.setLevel(logging.DEBUG)
+imlogger.addHandler(logging.StreamHandler())
 
 
 def main():
@@ -21,7 +26,6 @@ def main():
     chat_completion = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         messages=chat_messages,
-        # ip_project_key="alecf-local-playground",
         ip_api_key="619dd081-2f72-4eb1-9f90-3d3c3772334d",
         ip_api_name="test-from-apitest-chat",
         ip_template_chat=chat_template,
@@ -33,7 +37,6 @@ def main():
     completion = openai.Completion.create(
         model="text-davinci-003",
         prompt=prompt_text,
-        # ip_project_key="alecf-local-playground",
         ip_api_key="619dd081-2f72-4eb1-9f90-3d3c3772334d",
         ip_api_name="test-from-apitest-completion",
         ip_template_text=template,

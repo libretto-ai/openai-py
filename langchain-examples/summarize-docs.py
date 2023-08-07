@@ -16,7 +16,7 @@ logger = logging.getLogger("im_openai")
 logger.setLevel(logging.INFO)
 
 callbacks = langchain_util.PromptWatchCallbacks(
-    project_key="example-langchain-simple-qa", api_name="summarization"
+    api_key="f1ed34de-5069-48f9-a513-6095c45e3a30", api_name="summarization"
 )
 text_splitter = RecursiveCharacterTextSplitter(
     # Set a really small chunk size, just to show.
