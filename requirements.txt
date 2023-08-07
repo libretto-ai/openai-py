@@ -8,7 +8,7 @@ black==23.7.0
 bleach==6.0.0
 bump2version==1.0.1
 cachetools==5.3.1
-certifi==2023.5.7
+certifi==2023.7.22
 cffi==1.15.1
 cfgv==3.3.1
 chardet==5.1.0
