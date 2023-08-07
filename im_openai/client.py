@@ -1,3 +1,4 @@
+"""Utilities for sending events to Imaginary Dev."""
 import asyncio
 import logging
 import os
@@ -18,11 +19,11 @@ async def send_event(
     *,
     project_key: str | None = None,
     api_name: str | None,
-    prompt_event_id: str | None,
-    prompt_template_text: str | None,
-    prompt_template_chat: List | None,
-    prompt_params: Dict | None,
-    chat_id: str | None,
+    prompt_event_id: str | None = None,
+    prompt_template_text: str | None = None,
+    prompt_template_chat: List | None = None,
+    prompt_params: Dict | None = None,
+    chat_id: str | None = None,
     response: str | None = None,
     response_time: float | None = None,
     prompt: Any | None = None,
