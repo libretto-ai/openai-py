@@ -79,3 +79,7 @@
 ## 0.7.3
 
 -   add explicit support for api_key
+
+## 0.8.0
+
+-   switch to api_key, pretend project_key isn't even a thing
