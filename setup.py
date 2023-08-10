@@ -11,11 +11,10 @@ with open("HISTORY.md") as history_file:
     history = history_file.read()
 
 requirements = []
+with open("requirements.txt") as f:
+    requirements = f.read().splitlines()
 
-test_requirements = [
-    "pytest>=3",
-]
-from im_openai import __version__
+test_requirements = ["pytest>=3", "langchain"]
 
 setup(
     author="Alec Flett",
@@ -43,6 +42,6 @@ setup(
     test_suite="tests",
     tests_require=test_requirements,
     url="https://github.com/alecf/im_openai",
-    version=__version__,
+    version="0.8.1",
     zip_safe=False,
 )
