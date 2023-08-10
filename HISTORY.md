@@ -88,3 +88,13 @@
 
 -   Used root parent_run_id in langchain calls
 -   Unified langchain run id accounting
+
+## 0.8.2
+
+-   added ability to pass `ip_api_name` into langchain template's `additional_kwargs`, like:
+    ```python
+    template = TemplateString(
+        "Hello, {{name}}!",
+        additional_kwargs={"ip_api_name": "my-api"},
+    )
+    ```
