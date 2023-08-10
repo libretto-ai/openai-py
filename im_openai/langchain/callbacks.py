@@ -157,6 +157,10 @@ class PromptWatchCallbacks(BaseCallbackHandler):
 
         if isinstance(prompt_template, BasePromptTemplate):
             self.runs[run_id]["prompt_template"] = prompt_template
+
+            # User might have overridden the api_name
+            api_name = prompt_template._lc_kwargs.get("additional_kwargs", {}).get("ip_api_name")
+            self.runs[run_id]["api_name"] = api_name
         else:
             logger.warn("Unrecognized prompt template type: %s", type(prompt_template))
 
@@ -270,6 +274,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         if not run:
             logger.warning("on_llm_start Missing run %s", run_id)
             return
+        api_name = self._get_run_info(run_id, "api_name")
         model_params = _extract_openai_params(serialized)
         run["prompts"] = prompts
         run["now"] = time.time()
@@ -285,6 +290,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
                 prompts,
                 parent_event_id=parent_run_id,
                 model_params=model_params,
+                api_name=api_name,
             )
         )
 
@@ -309,6 +315,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         run = self._get_run(run_id)
         if not run:
             return
+        api_name = self._get_run_info(run_id, "api_name")
         model_params = _extract_openai_params(serialized)
         run["messages"] = messages
         run["now"] = time.time()
@@ -322,6 +329,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
                 messages,
                 parent_event_id=parent_run_id,
                 model_params=model_params,
+                api_name=api_name,
             )
         )
 
@@ -349,6 +357,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         now = time.time()
         model_params = run["model_params"]
         response_time = (now - run["now"]) * 1000
+        api_name = self._get_run_info(run_id, "api_name")
 
         if "messages" in run:
             template_chat = self._resolve_chat_template(run_id)
@@ -362,10 +371,12 @@ class PromptWatchCallbacks(BaseCallbackHandler):
                     response,
                     response_time,
                     parent_event_id=parent_run_id,
+                    api_name=api_name,
                 )
             )
         elif "prompts" in run:
             template_text = self._get_run_info(run_id, "prompt_template_text") or self.template_text
+            api_name = self._get_run_info(run_id, "api_name")
             asyncio.run(
                 self._async_send_completion(
                     run_id,
@@ -376,6 +387,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
                     model_params=model_params,
                     result=response,
                     response_time=response_time,
+                    api_name=api_name,
                 )
             )
         else:
@@ -421,6 +433,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         response_time: float | None = None,
         parent_event_id: UUID | None = None,
         model_params: Dict | None = None,
+        api_name: str | None = None,
         is_chat: bool = False,
     ):
         # walk up the parent chain until we hit the root
@@ -456,7 +469,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
                     session,
                     project_key=self.project_key,
                     api_key=self.api_key,
-                    api_name=self.api_name,
+                    api_name=api_name or self.api_name,
                     prompt_template_text=prompt_template_text,  # type: ignore
                     prompt_template_chat=prompt_template_chat,  # type: ignore
                     prompt_params=json_inputs,
@@ -481,6 +494,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         result: LLMResult | None = None,
         response_time: float | None = None,
         parent_event_id: UUID | None = None,
+        api_name: str | None = None,
     ):
         await self._async_send(
             run_id,
@@ -491,6 +505,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             response_time=response_time,
             parent_event_id=parent_event_id,
             model_params=model_params,
+            api_name=api_name,
             is_chat=True,
         )
 
@@ -505,6 +520,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         model_params: Dict | None = None,
         result: LLMResult | None = None,
         response_time: float | None = None,
+        api_name: str | None = None,
     ):
         await self._async_send(
             prompt_event_id,
@@ -515,6 +531,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             response_time=response_time,
             parent_event_id=parent_event_id,
             model_params=model_params,
+            api_name=api_name,
             is_chat=False,
         )
 
