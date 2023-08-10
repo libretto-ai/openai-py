@@ -15,6 +15,7 @@ requirements = []
 test_requirements = [
     "pytest>=3",
 ]
+from im_openai import __version__
 
 setup(
     author="Alec Flett",
@@ -42,6 +43,6 @@ setup(
     test_suite="tests",
     tests_require=test_requirements,
     url="https://github.com/alecf/im_openai",
-    version="0.8.0",
+    version=__version__,
     zip_safe=False,
 )

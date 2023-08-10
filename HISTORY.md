@@ -83,3 +83,8 @@
 ## 0.8.0
 
 -   switch to api_key, pretend project_key isn't even a thing
+
+## 0.8.1
+
+-   Used root parent_run_id in langchain calls
+-   Unified langchain run id accounting
