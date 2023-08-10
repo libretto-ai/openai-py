@@ -12,12 +12,8 @@ from uuid import UUID
 import aiohttp
 from langchain.callbacks.base import BaseCallbackHandler
 from langchain.callbacks.manager import tracing_v2_callback_var
-from langchain.prompts import (
-    BaseChatPromptTemplate,
-    BasePromptTemplate,
-    StringPromptTemplate,
-)
-from langchain.prompts.chat import BaseChatPromptTemplate, BaseMessagePromptTemplate
+from langchain.prompts import BasePromptTemplate
+from langchain.prompts.chat import BaseMessagePromptTemplate
 from langchain.schema import AgentAction, AgentFinish, BaseMessage, LLMResult
 
 from im_openai import client
@@ -28,6 +24,32 @@ from .patch import loads
 logger = logging.getLogger(__name__)
 
 from functools import wraps
+
+
+def record_run_info(run_type: str):
+    """Decorator to record the run info of a function call"""
+
+    def _record_decorator(func):
+        @wraps(func)
+        def record(self, *args, **kwargs):
+            if "run_id" in kwargs:
+                run_id = kwargs["run_id"]
+                prev_type = self.run_types.get(run_id, None)
+                if prev_type is not None and prev_type != run_type:
+                    logger.warn(f"converting run {run_id} from {prev_type} to {run_type}")
+                self.run_types[kwargs["run_id"]] = run_type
+                if "parent_run_id" in kwargs:
+                    parent_run_id = kwargs["parent_run_id"]
+                    if parent_run_id:
+                        self.parent_run_ids[run_id] = parent_run_id
+                    elif run_type != "chain":
+                        logger.warn(f"WARNING: parent_run_id is None for {run_type} {run_id}")
+
+            return func(self, *args, **kwargs)
+
+        return record
+
+    return _record_decorator
 
 
 class PromptWatchCallbacks(BaseCallbackHandler):
@@ -42,6 +64,8 @@ class PromptWatchCallbacks(BaseCallbackHandler):
     """A dictionary of information about a run, keyed by run_id"""
     parent_run_ids: Dict[UUID, UUID] = {}
     """In case self.runs is missing a run, we can walk up the parent chain to find it"""
+
+    run_types: Dict[UUID, str] = {}
 
     server_event_ids: Dict[UUID, str | None] = {}
     """Mapping of run_id to server event id"""
@@ -103,6 +127,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             self.server_event_ids[run_id] = None
         return self.server_event_ids[run_id]
 
+    @record_run_info("chain")
     def on_chain_start(
         self,
         serialized: Dict[str, Any],
@@ -114,8 +139,6 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         metadata: Optional[Dict[str, Any]] = None,
         **kwargs: Any,
     ):
-        if parent_run_id:
-            self.parent_run_ids[run_id] = parent_run_id
         logger.info(
             "on_chain_start      %s [%s] %s",
             self._format_run_id(run_id),
@@ -129,13 +152,37 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             "prompt_event_id": uuid.uuid4(),
         }
 
-        # super hack to extract the prompt if it exists
-        prompt_obj = serialized.get("kwargs", {}).get("prompt")
-        if prompt_obj:
-            prompt_template = loads(json.dumps(prompt_obj), valid_namespaces=self.valid_namespaces)
-            if isinstance(prompt_template, BasePromptTemplate):
-                self.runs[run_id]["prompt_template"] = prompt_template
+        # First try to load the chain
+        prompt_template = self._extract_template_from_chain(serialized)
 
+        if isinstance(prompt_template, BasePromptTemplate):
+            self.runs[run_id]["prompt_template"] = prompt_template
+        else:
+            logger.warn("Unrecognized prompt template type: %s", type(prompt_template))
+
+    def _extract_template_from_chain(self, serialized: Dict[str, Any]):
+        """Attempt to extract the prompt template from a serialized
+        representation of a chain. Tries first to use standard deserialization,
+        then falls back to a hacky method of extracting the prompt from the
+        kwargs"""
+        prompt_template = None
+        try:
+            chain = loads(json.dumps(serialized), valid_namespaces=self.valid_namespaces)
+            prompt_template = chain.prompt
+        except (NotImplementedError, AttributeError) as e:
+            module_path = cast(list, serialized.get("id", []))
+            logger.debug("Skipping chain derserialization %s: %s", ".".join(module_path), e)
+
+            # super hack to extract the prompt if it exists
+            prompt_obj = serialized.get("kwargs", {}).get("prompt")
+            if prompt_obj:
+                prompt_template = loads(
+                    json.dumps(prompt_obj), valid_namespaces=self.valid_namespaces
+                )
+
+        return prompt_template
+
+    @record_run_info("chain")
     def on_agent_action(
         self,
         action: AgentAction,
@@ -144,8 +191,6 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         parent_run_id: Optional[UUID] = None,
         **kwargs: Any,
     ) -> Any:
-        if parent_run_id:
-            self.parent_run_ids[run_id] = parent_run_id
         logger.info(
             "on_agent_action     %s %s",
             self._format_run_id(run_id),
@@ -153,6 +198,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         )
         """Run on agent action."""
 
+    @record_run_info("chain")
     def on_agent_finish(
         self,
         finish: AgentFinish,
@@ -162,14 +208,47 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         **kwargs: Any,
     ) -> Any:
         """Run on agent end."""
-        if parent_run_id:
-            self.parent_run_ids[run_id] = parent_run_id
         logger.info(
-            "on_agent_finish    %s %s",
+            "on_agent_finish     %s %s",
             self._format_run_id(run_id),
             finish.log,
         )
 
+    @record_run_info("tool")
+    def on_tool_start(
+        self,
+        serialized: Dict[str, Any],
+        input_str: str,
+        *,
+        run_id: UUID,
+        parent_run_id: Optional[UUID] = None,
+        tags: Optional[List[str]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        **kwargs: Any,
+    ):
+        logger.info(
+            "on_tool_start       %s",
+            self._format_run_id(run_id),
+        )
+
+    @record_run_info("retriever")
+    def on_retriever_start(
+        self,
+        serialized: Dict[str, Any],
+        query: str,
+        *,
+        run_id: UUID,
+        parent_run_id: Optional[UUID] = None,
+        tags: Optional[List[str]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        **kwargs: Any,
+    ):
+        logger.info(
+            "on_retriever_start    %s",
+            self._format_run_id(run_id),
+        )
+
+    @record_run_info("llm")
     def on_llm_start(
         self,
         serialized: Dict[str, Any],
@@ -181,8 +260,6 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         **kwargs: Any,
     ):
         """Run when a text-based LLM runs"""
-        if parent_run_id:
-            self.parent_run_ids[run_id] = parent_run_id
         logger.info(
             "on_llm_start %s (%s prompts)",
             self._format_run_id(run_id),
@@ -211,6 +288,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             )
         )
 
+    @record_run_info("llm")
     def on_chat_model_start(
         self,
         serialized,
@@ -222,8 +300,6 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         **kwargs,
     ):
         """Runs when a chat-based LLM runs"""
-        if parent_run_id:
-            self.parent_run_ids[run_id] = parent_run_id
         logger.info(
             "on_chat_model_start %s (%s prompts)",
             self._format_run_id(run_id),
@@ -238,7 +314,6 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         run["now"] = time.time()
         run["model_params"] = model_params
         template_chat = self._resolve_chat_template(run_id)
-
         asyncio.run(
             self._async_send_chat(
                 run_id,
@@ -250,17 +325,17 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             )
         )
 
+    @record_run_info("llm")
     def on_llm_end(
         self,
         response: LLMResult,
         *,
         run_id: UUID,
         parent_run_id: Optional[UUID] = None,
+        tags: Optional[List[str]] = None,
         **kwargs: Any,
     ):
         """Runs when either a text-based or chat-based LLM ends"""
-        if parent_run_id:
-            self.parent_run_ids[run_id] = parent_run_id
         logger.info(
             "on_llm_end          %s (%s responses)",
             self._format_run_id(run_id),
@@ -274,6 +349,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         now = time.time()
         model_params = run["model_params"]
         response_time = (now - run["now"]) * 1000
+
         if "messages" in run:
             template_chat = self._resolve_chat_template(run_id)
             asyncio.run(
@@ -305,6 +381,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         else:
             logger.warning("Missing prompts or messages in run %s %s", run_id, run)
 
+    @record_run_info("llm")
     def on_llm_error(
         self,
         error: Union[Exception, KeyboardInterrupt],
@@ -315,6 +392,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
     ) -> Any:
         """Run when LLM errors."""
 
+    @record_run_info("chain")
     def on_chain_end(
         self,
         outputs: Dict[str, Any],
@@ -324,8 +402,6 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         tags: Optional[List[str]] = None,
         **kwargs: Any,
     ):
-        if parent_run_id:
-            self.parent_run_ids[run_id] = parent_run_id
         logger.info(
             "on_chain_end        %s [%s]",
             self._format_run_id(run_id),
@@ -347,6 +423,10 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         model_params: Dict | None = None,
         is_chat: bool = False,
     ):
+        # walk up the parent chain until we hit the root
+        parent_event_id = run_id
+        while parent_event_id in self.parent_run_ids:
+            parent_event_id = self.parent_run_ids[parent_event_id]
         async with aiohttp.ClientSession() as session:
             generations_lists = result.generations if result else []
             for iteration, generations in zip_longest(iterations, generations_lists):

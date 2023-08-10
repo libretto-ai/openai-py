@@ -52,6 +52,7 @@ pyflakes==3.0.1
 Pygments==2.15.1
 pyproject-api==1.5.3
 pytest==7.4.0
+pytest-asyncio==0.21.1
 PyYAML==6.0.1
 readme-renderer==40.0
 requests==2.31.0

@@ -27,6 +27,7 @@ jobs:
               run: |
                   python -m pip install --upgrade pip
                   pip install -r requirements.txt
+                  # hack: install langchain here for tests
                   python -m pip install langchain
             - name: Run tests
               run: |
