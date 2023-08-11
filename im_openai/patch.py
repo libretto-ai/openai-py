@@ -1,5 +1,6 @@
 import asyncio
 import os
+from contextlib import contextmanager
 from typing import Callable, List
 
 import openai
@@ -122,3 +123,17 @@ def patch_openai():
         unpatch_completion()
 
     return unpatch
+
+
+@contextmanager
+def patched_openai():
+    """Simple context manager to wrap patching openai. Usage:
+
+    ```
+    with patched_openai():
+        # do stuff
+    ```
+    """
+    unpatch = patch_openai()
+    yield
+    unpatch()

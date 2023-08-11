@@ -20,7 +20,35 @@ monitor
 
 ## Get Started
 
+To send events to Imaginary Programming, you'll need to create a project. From the project you'll need two things:
+
+1. **API key**: This is generated for the project and is used to identify the project and environment (dev, staging, prod) that the event is coming from.
+2. **API Name**: This uniquely identifies a particular prompt that you are using. This allows projects to have multiple prompts. You do not need to generate this in advance: if the API name does not exist, then it will be created automatically. This can be in any format but we recommend using a dash-separated format, e.g. `my-prompt-name`.
+
 ### OpenAI
+
+You can use the `patched_openai` context manager to patch your code:
+
+```python
+from im_openai import patched_openai
+
+with patched_openai("4b2a6608-86cd-4819-aba6-479f9edd8bfb", "sport-emoji"):
+    import openai
+
+    completion = openai.ChatCompletion.create(
+        # Standard OpenAI parameters
+        engine="davinci",
+        prompt="Show me an emoji that matches the sport: soccer",
+
+        # Imaginary Programming parameters
+        ip_template_params={"sport": "soccer"},
+        ip_template_chat=[{
+            "role": "user", "content": "Show me an emoji that matches the sport: {sport}"
+        }]
+    )
+```
+
+#### Advanced usage
 
 At startup, before any openai calls, patch the library with the
 following code:
@@ -30,18 +58,21 @@ from im_openai import patch_openai
 patch_openai()
 ```
 
-Then, set the `ip_api_key` and `ip_api_name` for each request:
-
 ```python
 import openai
 
 completion = openai.ChatCompletion.create(
+    # Standard OpenAI parameters
     engine="davinci",
     prompt="Show me an emoji that matches the sport: soccer",
-    ip_api_key="6a0ea966-8e4d-45ef-b7bf-9577ab73a60d",
+
+    # Imaginary Programming parameters
+    ip_api_key="4b2a6608-86cd-4819-aba6-479f9edd8bfb",
     ip_api_name="sport-emoji",
     ip_template_params={"sport": "soccer"},
-    ip_template_chat=[{"role": "user", "content": "Show me an emoji that matches the sport: {sport}" }]
+    ip_template_chat=[{
+        "role": "user", "content": "Show me an emoji that matches the sport: {sport}"
+    }]
 )
 ```
 
@@ -52,23 +83,53 @@ For langchain, you can directly patch, or use a context manager before setting u
 Using a context manager: (recommended)
 
 ```python
-
 from im_openai.langchain import prompt_watch_tracing
 
-with prompt_watch_tracing("emojification", "sport-emoji"):
+with prompt_watch_tracing("4b2a6608-86cd-4819-aba6-479f9edd8bfb", "sport-emoji"):
     chain = LLMChain(llm=...)
     chain.run("Hello world", inputs={"name": "world"})
 ```
 
-Patch directly:
+The `api_key` parameter is visible from your project's settings page.
+
+the api_name parameter can also be passed directly to a template when you create it, so that it can be tracked separately from other templates:
+
+```python
+from langchain import OpenAI, PromptTemplate, LLMChain
+
+with prompt_watch_tracing("4b2a6608-86cd-4819-aba6-479f9edd8bfb", "default-questions"):
+    template = PromptTemplate("""
+Please answer the following question: {question}.
+""",
+        input_variables=["question"])
+    llm = LLMChain(prompt=prompt, llm=OpenAI())
+    llm.run(question="What is the meaning of life?")
+
+    # Track user greetings separately under the `user-greeting` api name
+    greeting_prompt = PromptTemplate("""
+Please greet our newest forum member, {user}. Be nice and enthusiastic but not overwhelming.
+""",
+        input_variables=["user"],
+        additional_kwargs={"ip_api_name": "user-greeting"})
+    llm = LLMChain(prompt=prompt, llm=OpenAI(openai_api_key=...))
+    llm.run(user="Bob")
+
+```
+
+#### Advanced usage
+
+You can patch directly:
 
 ```python
 from im_openai.langchain import prompt_watch_tracing
 
-old_tracer = enable_prompt_watch_tracing("emojification", "sport-emoji",
-    template_chat=[{"role": "user", "content": "Show me an emoji that matches the sport: {sport}" }])
-chain = LLMChain(llm=...)
-chain.run("Hello world", inputs={"name": "world"})
+old_tracer = enable_prompt_watch_tracing("emojification", "sport-emoji")
+template_chat=ChatPromptTemplate.from_messages([{
+    "role": "user",
+    "content": "Show me an emoji that matches the sport: {sport}"
+}])
+chain = LLMChain(llm=ChatOpenAI(), prompt=template_chat)
+chain.run(sport="Soccer")
 
 # optional, if you need to disable tracing later
 disable_prompt_watch_tracing(old_tracer)
