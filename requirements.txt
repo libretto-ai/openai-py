@@ -70,7 +70,7 @@ sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==1.0.5
 sphinxcontrib-serializinghtml==1.1.7
 tox==4.7.0
-tqdm==4.65.0
+tqdm==4.66.1
 twine==4.0.2
 urllib3==2.0.4
 virtualenv==20.24.2
