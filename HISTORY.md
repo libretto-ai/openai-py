@@ -98,3 +98,8 @@
         additional_kwargs={"ip_api_name": "my-api"},
     )
     ```
+
+## 0.8.3
+
+-   Added context manager for basic openai calls
+-   Better docs
