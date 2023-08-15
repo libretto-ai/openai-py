@@ -103,3 +103,8 @@
 
 -   Added context manager for basic openai calls
 -   Better docs
+
+## 0.8.4
+
+-   Switched to load() now that it is in langchain proper
+-   Resolved `None` to `{varname}` in templates rather than leaving it out
