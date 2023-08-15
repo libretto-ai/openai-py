@@ -149,7 +149,7 @@ def make_stub_inputs(inputs: Dict[str, Any]) -> Dict[str, Any]:
 
 def make_stub_inputs_raw(inputs: Dict[str, Any], prefix: str):
     if inputs is None:
-        return None
+        return f"{{{prefix}}}"
     if isinstance(inputs, dict):
         dict_prefix = f"{prefix}." if prefix else ""
         return {k: make_stub_inputs_raw(v, f"{dict_prefix}{k}") for k, v in inputs.items()}
