@@ -37,8 +37,10 @@ with patched_openai("4b2a6608-86cd-4819-aba6-479f9edd8bfb", "sport-emoji"):
 
     completion = openai.ChatCompletion.create(
         # Standard OpenAI parameters
-        engine="davinci",
-        prompt="Show me an emoji that matches the sport: soccer",
+        model="gpt-3.5-turbo",
+        messages=[{
+            "role": "user", "content": "Show me an emoji that matches the sport: soccer"
+        }],
 
         # Imaginary Programming parameters
         ip_template_params={"sport": "soccer"},
@@ -46,6 +48,25 @@ with patched_openai("4b2a6608-86cd-4819-aba6-479f9edd8bfb", "sport-emoji"):
             "role": "user", "content": "Show me an emoji that matches the sport: {sport}"
         }]
     )
+```
+
+The completion API is also patched:
+
+```python
+from im_openai import patched_openai
+
+with patched_openai("4b2a6608-86cd-4819-aba6-479f9edd8bfb", "sport-emoji"):
+    import openai
+
+    completion = openai.Completion.create(
+        # Standard OpenAI parameters
+        model="text-davinci-003",
+        prompt="Show me an emoji that matches the sport: soccer",
+
+        ip_template_params={"sport": "soccer"},
+        ip_template_text="Show me an emoji that matches the sport: {sport}"
+    )
+
 ```
 
 #### Advanced usage
@@ -63,8 +84,10 @@ import openai
 
 completion = openai.ChatCompletion.create(
     # Standard OpenAI parameters
-    engine="davinci",
-    prompt="Show me an emoji that matches the sport: soccer",
+    model="gpt-3.5-turbo",
+    messages=[{
+        "role": "user", "content": "Show me an emoji that matches the sport: soccer"
+    }],
 
     # Imaginary Programming parameters
     ip_api_key="4b2a6608-86cd-4819-aba6-479f9edd8bfb",
