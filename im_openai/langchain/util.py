@@ -24,6 +24,7 @@ from langchain.schema import (
     HumanMessage,
     SystemMessage,
 )
+from langchain.schema.agent import AgentAction
 
 logger = logging.getLogger(__name__)
 
@@ -168,6 +169,12 @@ def make_stub_inputs_raw(inputs: Dict[str, Any], prefix: str):
         return FakeInternalMessage(
             role=f"{{{prefix}.role}}",
             content=f"{{{prefix}.content}}",
+        )
+    if isinstance(inputs, AgentAction):
+        return AgentAction(
+            tool=make_stub_inputs_raw(inputs.tool, f"{{{prefix}.tool}}"),
+            tool_input=make_stub_inputs_raw(inputs.tool_input, f"{{{prefix}.tool_input}}"),
+            log=make_stub_inputs_raw(inputs.log, f"{{{prefix}.log}}"),
         )
     return inputs
 
