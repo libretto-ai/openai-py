@@ -12,6 +12,7 @@ from uuid import UUID
 import aiohttp
 from langchain.callbacks.base import BaseCallbackHandler
 from langchain.callbacks.manager import tracing_v2_callback_var
+from langchain.load.load import load
 from langchain.prompts import BasePromptTemplate
 from langchain.prompts.chat import BaseMessagePromptTemplate
 from langchain.schema import AgentAction, AgentFinish, BaseMessage, LLMResult
@@ -19,7 +20,6 @@ from langchain.schema import AgentAction, AgentFinish, BaseMessage, LLMResult
 from im_openai import client
 
 from . import util
-from .patch import loads
 
 logger = logging.getLogger(__name__)
 
@@ -171,7 +171,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         kwargs"""
         prompt_template = None
         try:
-            chain = loads(json.dumps(serialized), valid_namespaces=self.valid_namespaces)
+            chain = load(serialized, valid_namespaces=self.valid_namespaces)
             prompt_template = chain.prompt
         except (NotImplementedError, AttributeError) as e:
             module_path = cast(list, serialized.get("id", []))
@@ -180,9 +180,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             # super hack to extract the prompt if it exists
             prompt_obj = serialized.get("kwargs", {}).get("prompt")
             if prompt_obj:
-                prompt_template = loads(
-                    json.dumps(prompt_obj), valid_namespaces=self.valid_namespaces
-                )
+                prompt_template = load(prompt_obj, valid_namespaces=self.valid_namespaces)
 
         return prompt_template
 
