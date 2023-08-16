@@ -112,3 +112,7 @@
 ## 0.9.0
 
 -   Complete rewrite of prompt resolution for chats: better support for agents
+
+## 0.9.1
+
+-   Thread through chat_id
