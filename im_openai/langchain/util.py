@@ -8,13 +8,20 @@ from typing import Any, Dict, List, Union, cast
 
 from langchain.callbacks.manager import tracing_v2_callback_var
 from langchain.prompts import (
+    AIMessagePromptTemplate,
     BaseChatPromptTemplate,
     BasePromptTemplate,
+    ChatMessagePromptTemplate,
+    ChatPromptTemplate,
+    HumanMessagePromptTemplate,
+    PromptTemplate,
     StringPromptTemplate,
+    SystemMessagePromptTemplate,
 )
 from langchain.prompts.chat import (
     BaseChatPromptTemplate,
     BaseMessagePromptTemplate,
+    BaseStringMessagePromptTemplate,
     MessagesPlaceholder,
 )
 from langchain.schema import (
@@ -153,7 +160,10 @@ def make_stub_inputs_raw(inputs: Dict[str, Any], prefix: str):
         return f"{{{prefix}}}"
     if isinstance(inputs, dict):
         dict_prefix = f"{prefix}." if prefix else ""
-        return {k: make_stub_inputs_raw(v, f"{dict_prefix}{k}") for k, v in inputs.items()}
+        return {
+            k: make_stub_inputs_raw(make_special_langchain_value(v, k), f"{dict_prefix}{k}")
+            for k, v in inputs.items()
+        }
     if isinstance(inputs, (str, int, float, bool)) or inputs is None:
         return f"{{{prefix}}}"
     if isinstance(inputs, list):
@@ -176,7 +186,26 @@ def make_stub_inputs_raw(inputs: Dict[str, Any], prefix: str):
             tool_input=make_stub_inputs_raw(inputs.tool_input, f"{{{prefix}.tool_input}}"),
             log=make_stub_inputs_raw(inputs.log, f"{{{prefix}.log}}"),
         )
+    # breakpoint()
     return inputs
+
+
+def make_special_langchain_value(v: Any, k: str):
+    if k == "intermediate_steps" and not v:
+        return [
+            [
+                AgentAction(
+                    tool="{intermediate_steps}.tool",
+                    tool_input="{intermediate_steps}.tool_input",
+                    log="{intermediate_steps}.log",
+                ),
+                "{intermediate_steps[0][1]}",
+            ]
+        ]
+    if k == "agent_history" and not v:
+        # TODO: expand with placeholder?
+        return [MessagesPlaceholder(variable_name="agent_history")]
+    return v
 
 
 def format_completion_template_with_inputs(template: BasePromptTemplate, inputs: Dict[str, Any]):
@@ -194,15 +223,90 @@ def format_completion_template_with_inputs(template: BasePromptTemplate, inputs:
 
 def format_chat_template_with_inputs(template, inputs):
     stub_inputs = make_stub_inputs(inputs)
+    return format_chat_template_with_stub_inputs(template, stub_inputs, "")
+
+
+type2role = {"ai": "assistant", "human": "user", "system": "system"}
+
+
+def format_chat_template_with_stub_inputs(
+    template, stub_inputs, prefix: str
+) -> List[Dict[str, Any]]:
     # Some of the templat formatters get upset if you pass in extra keys
-    filtered_stub_inputs = {k: v for k, v in stub_inputs.items() if k in template.input_variables}
-    if isinstance(template, (BaseMessagePromptTemplate, BaseChatPromptTemplate)):
-        # We can't go through format_prompt because it doesn't like formatting the wrong types
-        template_chat = template.format_messages(**filtered_stub_inputs)
-    elif isinstance(template, StringPromptTemplate):
-        template_chat = template.format_prompt(**filtered_stub_inputs).to_messages()
-    else:
+
+    if isinstance(template, ChatPromptTemplate):
+        # Container for a list of messages.
+        # Introduces the `messages` property
+        filtered_stub_inputs = {
+            k: v for k, v in stub_inputs.items() if k in template.input_variables
+        }
+        sub_inputs = {**template.partial_variables, **stub_inputs}
+        sub_messages = [
+            format_chat_template_with_stub_inputs(m, sub_inputs, f"  {prefix}")
+            for m in template.messages
+        ]
+        # Flatten sub_messages
+        return [item for sublist in sub_messages for item in sublist]
+    elif isinstance(template, PromptTemplate):
+        filtered_stub_inputs = {
+            k: v for k, v in stub_inputs.items() if k in template.input_variables
+        }
+        base_messages = template.format_prompt(**filtered_stub_inputs).to_messages()
+        messages = [
+            format_chat_template_with_stub_inputs(m, filtered_stub_inputs, f"  {prefix}")
+            for m in base_messages
+        ]
+        # flatten
+        return [item for sublist in messages for item in sublist]
+    elif isinstance(template, MessagesPlaceholder):
+        # declared inline with the special "chat_history" role
+        return [{"role": "chat_history", "content": f"{{{template.variable_name}}}"}]
+    elif isinstance(template, ChatMessagePromptTemplate):
+        # Introduces the `role` property
+        filtered_stub_inputs = {
+            k: v for k, v in stub_inputs.items() if k in template.input_variables
+        }
+        return [
+            {
+                "role": template.role,
+                "content": format_string_prompt_template(template.prompt, filtered_stub_inputs),
+            }
+        ]
+    elif isinstance(template, BaseMessage):
+        # Raw, untemplated message (AIMessage, HumanMessage, etc)
+        return [
+            {
+                "role": getattr(template, "role", None) or type2role[template.type],
+                "content": template.content,
+            }
+        ]
+    elif isinstance(template, BaseStringMessagePromptTemplate):
+        # introduces the `prompt`, but we just use format to make a string
+        filtered_stub_inputs = {
+            k: v for k, v in stub_inputs.items() if k in template.input_variables
+        }
+        messages = template.format_messages(**filtered_stub_inputs)
+        sub_messages = [
+            format_chat_template_with_stub_inputs(m, stub_inputs, f"  {prefix}") for m in messages
+        ]
+        # flatten
+        return [item for sublist in sub_messages for item in sublist]
+    elif isinstance(template, BaseMessagePromptTemplate):
+        # A catch-all - all of the above should have caught this
+        filtered_stub_inputs = {
+            k: v for k, v in stub_inputs.items() if k in template.input_variables
+        }
+        messages = template.format_messages(**filtered_stub_inputs)
+        sub_messages = [
+            format_chat_template_with_stub_inputs(m, stub_inputs, f"  {prefix}") for m in messages
+        ]
+        return [item for sublist in sub_messages for item in sublist]
+    else:  #  isinstance(template, BasePromptTemplate):
+        breakpoint()
         raise ValueError(f"Unknown template type {type(template)}")
 
-    template_chat = format_chat_template(template_chat)  # type: ignore
-    return template_chat
+
+def format_string_prompt_template(v: StringPromptTemplate, stub_inputs: Dict[str, Any]) -> str:
+    if isinstance(v, PromptTemplate):
+        return v.template
+    return v.format(**stub_inputs)

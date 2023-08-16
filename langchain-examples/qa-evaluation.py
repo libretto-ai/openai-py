@@ -23,26 +23,26 @@ logging.basicConfig(stream=sys.stderr)
 logger = logging.getLogger("im_openai")
 logger.setLevel(logging.INFO)
 
-callbacks = langchain_util.PromptWatchCallbacks(
-    api_key="f1ed34de-5069-48f9-a513-6095c45e3a30", api_name="qa-evaluation"
-)
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-loader = TextLoader(os.path.join(os.path.dirname(__file__), "state_of_the_union.txt"))
 
-documents = loader.load()
-text_splitter = CharacterTextSplitter(
-    chunk_size=1000,
-    chunk_overlap=0,
-)
-texts = text_splitter.split_documents(documents)
+with langchain_util.prompt_watch_tracing(
+    "f1ed34de-5069-48f9-a513-6095c45e3a30", api_name=os.path.basename(__file__)
+):
+    loader = TextLoader(os.path.join(os.path.dirname(__file__), "state_of_the_union.txt"))
 
-embeddings = OpenAIEmbeddings(client=ChatOpenAI(client=ChatCompletion))
-docsearch = FAISS.from_documents(texts, embeddings)
-qa = RetrievalQA.from_llm(
-    llm=ChatOpenAI(client=ChatCompletion, callbacks=[callbacks]),
-    retriever=docsearch.as_retriever(),
-    callbacks=[callbacks],
-)
+    documents = loader.load()
+    text_splitter = CharacterTextSplitter(
+        chunk_size=1000,
+        chunk_overlap=0,
+    )
+    texts = text_splitter.split_documents(documents)
 
-print(qa({"query": "What is the state of the union?"}, callbacks=[callbacks]))
-print(qa({"query": "And who said that?"}, callbacks=[callbacks]))
+    embeddings = OpenAIEmbeddings(client=ChatOpenAI(client=ChatCompletion))
+    docsearch = FAISS.from_documents(texts, embeddings)
+    qa = RetrievalQA.from_llm(
+        llm=ChatOpenAI(client=ChatCompletion),
+        retriever=docsearch.as_retriever(),
+    )
+
+    print(qa({"query": "What is the state of the union?"}))
+    print(qa({"query": "And who said that?"}))

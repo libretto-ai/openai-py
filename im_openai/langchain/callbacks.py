@@ -72,6 +72,9 @@ class PromptWatchCallbacks(BaseCallbackHandler):
 
     valid_namespaces: List[str] | None = None
 
+    # uncomment to debug with pdb
+    # raise_error = True
+
     def __init__(
         self,
         api_key: str,
@@ -546,8 +549,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         template_chat = None
         if template and inputs:
             messages = util.format_chat_template_with_inputs(template, inputs)
-            json_messages = util.format_chat_template(messages)  # type: ignore
-            template_chat = util.replace_array_variables_with_placeholders(json_messages, inputs)
+            template_chat = util.replace_array_variables_with_placeholders(messages, inputs)
         return template_chat
 
     def _resolve_completion_template(self, run_id: UUID):

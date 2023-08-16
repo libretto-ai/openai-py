@@ -390,8 +390,7 @@ def test_format_chat_template_with_inputs_one():
 def test_format_chat_template_with_inputs_chat_history_zero():
     template = ChatPromptTemplate.from_messages([MessagesPlaceholder(variable_name="a")])
     msgs = langchain_util.format_chat_template_with_inputs(template, {"a": []})
-    # TODO: should be {"role": "chat_history", "content": "{a}"}
-    assert msgs == []
+    assert msgs == [{"role": "chat_history", "content": "{a}"}]
 
 
 def test_format_chat_template_with_inputs_chat_history_one():
