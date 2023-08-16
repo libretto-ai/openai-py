@@ -108,3 +108,7 @@
 
 -   Switched to load() now that it is in langchain proper
 -   Resolved `None` to `{varname}` in templates rather than leaving it out
+
+## 0.9.0
+
+-   Complete rewrite of prompt resolution for chats: better support for agents
