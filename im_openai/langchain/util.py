@@ -155,7 +155,7 @@ def make_stub_inputs(inputs: Dict[str, Any]) -> Dict[str, Any]:
     return make_stub_inputs_raw(inputs, "")  # type: ignore
 
 
-def make_stub_inputs_raw(inputs: Dict[str, Any], prefix: str):
+def make_stub_inputs_raw(inputs: Dict[str, Any] | List[Any], prefix: str):
     if inputs is None:
         return f"{{{prefix}}}"
     if isinstance(inputs, dict):

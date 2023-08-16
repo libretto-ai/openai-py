@@ -6,6 +6,7 @@ To use, you need to pip install a few modules:
 import logging
 import os
 import sys
+import uuid
 
 from langchain.chains import ConversationalRetrievalChain, RetrievalQA
 from langchain.chat_models import ChatOpenAI
@@ -27,7 +28,9 @@ logger.setLevel(logging.INFO)
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 with langchain_util.prompt_watch_tracing(
-    "f1ed34de-5069-48f9-a513-6095c45e3a30", api_name=os.path.basename(__file__)
+    "f1ed34de-5069-48f9-a513-6095c45e3a30",
+    api_name=os.path.basename(__file__),
+    chat_id=str(uuid.uuid4()),
 ):
     loader = TextLoader(os.path.join(os.path.dirname(__file__), "state_of_the_union.txt"))
 

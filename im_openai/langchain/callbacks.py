@@ -6,7 +6,7 @@ import time
 import uuid
 from contextlib import contextmanager
 from itertools import zip_longest
-from typing import Any, Dict, List, Optional, Union, cast
+from typing import Any, Dict, List, Optional, ParamSpec, Union, cast
 from uuid import UUID
 
 import aiohttp
@@ -60,6 +60,8 @@ class PromptWatchCallbacks(BaseCallbackHandler):
     template_chat: List[Dict] | None
     template_text: str | None
 
+    chat_id: str | None = None
+
     runs: Dict[UUID, Dict[str, Any]] = {}
     """A dictionary of information about a run, keyed by run_id"""
     parent_run_ids: Dict[UUID, UUID] = {}
@@ -84,6 +86,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         template_text: Optional[str] = None,
         template_chat: Optional[List[Union[BaseMessagePromptTemplate, BaseMessage]]] = None,
         valid_namespaces: Optional[List[str]] = None,
+        chat_id: Optional[str] = None,
     ):
         """Initialize the callback handler
 
@@ -101,10 +104,11 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         self.valid_namespaces = valid_namespaces
         self.runs = {}
         self.api_name = api_name
+        self.chat_id = chat_id
         if template_text is not None:
             self.template_text = template_text
         elif template_chat is not None:
-            self.template_chat = util.format_chat_template(template_chat)
+            self.template_chat = util.format_chat_template(cast(Any, template_chat))
         else:
             self.template_chat = None
         self.parent_run_ids = {}
@@ -292,6 +296,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
                 parent_event_id=parent_run_id,
                 model_params=model_params,
                 api_name=api_name,
+                chat_id=self.chat_id,
             )
         )
 
@@ -331,6 +336,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
                 parent_event_id=parent_run_id,
                 model_params=model_params,
                 api_name=api_name,
+                chat_id=self.chat_id,
             )
         )
 
@@ -373,6 +379,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
                     response_time,
                     parent_event_id=parent_run_id,
                     api_name=api_name,
+                    chat_id=self.chat_id,
                 )
             )
         elif "prompts" in run:
@@ -389,6 +396,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
                     result=response,
                     response_time=response_time,
                     api_name=api_name,
+                    chat_id=self.chat_id,
                 )
             )
         else:
@@ -435,6 +443,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         parent_event_id: UUID | None = None,
         model_params: Dict | None = None,
         api_name: str | None = None,
+        chat_id: str | None = None,
         is_chat: bool = False,
     ):
         # walk up the parent chain until we hit the root
@@ -476,7 +485,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
                     prompt_params=json_inputs,
                     prompt_event_id=prompt_event_id,
                     model_params=model_params,
-                    chat_id=None,
+                    chat_id=chat_id,
                     response=response_text,
                     response_time=response_time,
                     prompt=prompt,
@@ -496,6 +505,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         response_time: float | None = None,
         parent_event_id: UUID | None = None,
         api_name: str | None = None,
+        chat_id: str | None = None,
     ):
         await self._async_send(
             run_id,
@@ -507,6 +517,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             parent_event_id=parent_event_id,
             model_params=model_params,
             api_name=api_name,
+            chat_id=chat_id,
             is_chat=True,
         )
 
@@ -522,6 +533,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         result: LLMResult | None = None,
         response_time: float | None = None,
         api_name: str | None = None,
+        chat_id: str | None = None,
     ):
         await self._async_send(
             prompt_event_id,

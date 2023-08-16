@@ -182,7 +182,7 @@ Each of the above APIs accept the same additional parameters. The OpenAI API req
 -   `template_text` / `ip_template_text`: The text template to use for
     completion-style requests. This is a string or a template string with `{}`
     placeholders, e.g. `"Hello, {user_name}!"`.
--   `chat_id` / `ip_chat_id`: The UUID of a "chat session" - if the chat API is
+-   `chat_id` / `ip_chat_id`: The id of a "chat session" - if the chat API is
     being used in a conversational context, then the same chat id can be
     provided so that the events are grouped together, in order. If not provided,
     this will be left blank.
