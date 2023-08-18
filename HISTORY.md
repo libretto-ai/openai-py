@@ -116,3 +116,8 @@
 ## 0.9.1
 
 -   Thread through chat_id
+
+## 0.9.2
+
+-   Fixed typos in docs, clarified using `ip_` parameters
+-   Flushed out working `TemplateText` / `TemplateChat` templates
