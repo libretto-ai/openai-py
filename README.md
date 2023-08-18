@@ -27,75 +27,84 @@ To send events to Imaginary Programming, you'll need to create a project. From t
 
 ### OpenAI
 
-You can use the `patched_openai` context manager to patch your code:
+You can use the `patched_openai` context manager to patch your code.
+
+To allow our tools to separate the "prompt" from the "prompt parameters", use `TemplateChat` and `TemplateText` to create templates.
+
+Use `TemplateChat` For the ChatCompletion APIs:
 
 ```python
-from im_openai import patched_openai
+from im_openai import patched_openai, TemplateChat
 
-with patched_openai("4b2a6608-86cd-4819-aba6-479f9edd8bfb", "sport-emoji"):
+with patched_openai(api_key="...", api_name="sport-emoji"):
     import openai
 
     completion = openai.ChatCompletion.create(
         # Standard OpenAI parameters
         model="gpt-3.5-turbo",
-        messages=[{
-            "role": "user", "content": "Show me an emoji that matches the sport: soccer"
-        }],
-
-        # Imaginary Programming parameters
-        ip_template_params={"sport": "soccer"},
-        ip_template_chat=[{
-            "role": "user", "content": "Show me an emoji that matches the sport: {sport}"
-        }]
+        messages=TemplateChat(
+            [{"role": "user", "content": "Show me an emoji that matches the sport: {sport}"}],
+            {"sport": "soccer"},
+        ),
     )
 ```
 
-The completion API is also patched:
+Use `TemplateText` for the Completion API:
 
 ```python
-from im_openai import patched_openai
+from im_openai import patched_openai, TemplateText
 
-with patched_openai("4b2a6608-86cd-4819-aba6-479f9edd8bfb", "sport-emoji"):
+with patched_openai(api_key="...", api_name="sport-emoji"):
     import openai
 
     completion = openai.Completion.create(
         # Standard OpenAI parameters
         model="text-davinci-003",
-        prompt="Show me an emoji that matches the sport: soccer",
-
-        ip_template_params={"sport": "soccer"},
-        ip_template_text="Show me an emoji that matches the sport: {sport}"
+        prompt=TemplateText("Show me an emoji that matches the sport: {sport}", {"sport": "soccer"}),
     )
-
 ```
 
 #### Advanced usage
 
-At startup, before any openai calls, patch the library with the
-following code:
+##### Patching at startup
+
+Rather than using a context manager, you can patch the library once at startup:
 
 ```python
 from im_openai import patch_openai
-patch_openai()
+patch_openai(api_key="...")
 ```
+
+Then, you can use the patched library as normal:
 
 ```python
 import openai
 
 completion = openai.ChatCompletion.create(
     # Standard OpenAI parameters
-    model="gpt-3.5-turbo",
-    messages=[{
-        "role": "user", "content": "Show me an emoji that matches the sport: soccer"
-    }],
+    ...)
+```
 
-    # Imaginary Programming parameters
-    ip_api_key="4b2a6608-86cd-4819-aba6-479f9edd8bfb",
+##### Manually passing parameters
+
+While the use of `TemplateText` and `TemplateChat` are preferred, Most of the parameters passed during patch can also be passed directly to the `create()`, with an `ip_` prefix.
+
+```python
+completion = openai.ChatCompletion.create(
+    model="gpt-3.5-turbo",
+
+    # Note we are passing the raw chat object here
+    messages=[{"role": "user", "content": "Show me an emoji that matches the sport: soccer"}],
+
+    # call configuration
+    ip_api_key="...",
     ip_api_name="sport-emoji",
+
+    # Here the prompt and parameters is passed seperately
     ip_template_params={"sport": "soccer"},
-    ip_template_chat=[{
-        "role": "user", "content": "Show me an emoji that matches the sport: {sport}"
-    }]
+    ip_template_chat=[
+        {"role": "user", "content": "Show me an emoji that matches the sport: {sport}"}
+    ],
 )
 ```
 

@@ -1,14 +1,21 @@
 import asyncio
 import os
 from contextlib import contextmanager
-from typing import Callable, List
+from typing import Any, Callable, List, Optional, cast
 
 import openai
 
 from .client import event_session
+from .template import TemplateChat, TemplateString
 
 
-def patch_openai_class(cls, get_prompt_template: Callable, get_result: Callable):
+def patch_openai_class(
+    cls,
+    get_prompt_template: Callable,
+    get_result: Callable,
+    api_name: Optional[str] = None,
+    chat_id: Optional[str] = None,
+):
     oldcreate = cls.create
 
     async def local_create(
@@ -35,18 +42,28 @@ def patch_openai_class(cls, get_prompt_template: Callable, get_result: Callable)
         model_params = kwargs.copy()
         model_params["modelProvider"] = "openai"
         if "messages" in kwargs:
-            template_params = {}
+            messages: List[Any] = kwargs["messages"]
             del model_params["messages"]
             model_params["modelType"] = "chat"
-            for message in kwargs["messages"]:
-                if hasattr(message["content"], "template_args"):
-                    template_params.update(message["content"].template_args)
+
             if ip_template_params is None:
                 ip_template_params = {}
-            ip_template_params.update(template_params)
+
+            if hasattr(messages, "template"):
+                ip_template_chat = cast(TemplateChat, messages).template
+            if hasattr(messages, "params"):
+                ip_template_params.update(cast(TemplateChat, messages).params)
+
         if "prompt" in kwargs:
+            prompt: str = model_params["prompt"]
             del model_params["prompt"]
             model_params["modelType"] = "completion"
+            if hasattr(prompt, "template"):
+                ip_template_text = cast(TemplateString, prompt).template
+            if ip_template_params is None:
+                ip_template_params = {}
+            if hasattr(prompt, "params"):
+                ip_template_params.update(cast(TemplateString, prompt).params)
 
         if ip_template_text is None and ip_template_chat is None:
             ip_template = get_prompt_template(*args, **kwargs)
@@ -58,11 +75,11 @@ def patch_openai_class(cls, get_prompt_template: Callable, get_result: Callable)
         async with event_session(
             project_key=ip_project_key,
             api_key=ip_api_key,
-            api_name=ip_api_name,
+            api_name=ip_api_name or api_name,
             model_params=model_params,
             prompt_template_text=ip_template_text,
             prompt_template_chat=ip_template_chat,
-            chat_id=ip_chat_id,
+            chat_id=ip_chat_id or chat_id,
             prompt_template_params=ip_template_params,
             prompt_event_id=ip_event_id,
             parent_event_id=ip_parent_event_id,
@@ -95,7 +112,9 @@ def patch_openai_class(cls, get_prompt_template: Callable, get_result: Callable)
     return unpatch
 
 
-def patch_openai():
+def patch_openai(
+    api_key: Optional[str] = None, api_name: Optional[str] = None, chat_id: Optional[str] = None
+):
     """Patch openai APIs to add logging capabilities.
 
     Returns a function which may be called to "unpatch" the APIs."""
@@ -116,6 +135,8 @@ def patch_openai():
         openai.ChatCompletion,
         get_chat_prompt,
         lambda x: x["choices"][0]["message"]["content"],
+        api_name=api_name,
+        chat_id=chat_id,
     )
 
     def unpatch():
@@ -126,7 +147,9 @@ def patch_openai():
 
 
 @contextmanager
-def patched_openai():
+def patched_openai(
+    api_key: Optional[str] = None, api_name: Optional[str] = None, chat_id: Optional[str] = None
+):
     """Simple context manager to wrap patching openai. Usage:
 
     ```
@@ -134,6 +157,6 @@ def patched_openai():
         # do stuff
     ```
     """
-    unpatch = patch_openai()
+    unpatch = patch_openai(api_name=api_name, chat_id=chat_id)
     yield
     unpatch()
