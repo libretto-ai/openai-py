@@ -168,6 +168,8 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             # User might have overridden the api_name
             api_name = prompt_template._lc_kwargs.get("additional_kwargs", {}).get("ip_api_name")
             self.runs[run_id]["api_name"] = api_name
+        elif prompt_template is None:
+            logger.warn("Missing prompt template for chain %s", ".".join(serialized["id"]))
         else:
             logger.warn("Unrecognized prompt template type: %s", type(prompt_template))
 

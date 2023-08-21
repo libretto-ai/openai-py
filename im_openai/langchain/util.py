@@ -186,7 +186,6 @@ def make_stub_inputs_raw(inputs: Dict[str, Any] | List[Any], prefix: str):
             tool_input=make_stub_inputs_raw(inputs.tool_input, f"{{{prefix}.tool_input}}"),
             log=make_stub_inputs_raw(inputs.log, f"{{{prefix}.log}}"),
         )
-    # breakpoint()
     return inputs
 
 
@@ -302,7 +301,6 @@ def format_chat_template_with_stub_inputs(
         ]
         return [item for sublist in sub_messages for item in sublist]
     else:  #  isinstance(template, BasePromptTemplate):
-        breakpoint()
         raise ValueError(f"Unknown template type {type(template)}")
 
 

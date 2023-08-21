@@ -37,10 +37,10 @@ with langchain_util.prompt_watch_tracing(
     )
     texts = text_splitter.split_documents(documents)
 
-    embeddings = OpenAIEmbeddings(client=ChatOpenAI(client=ChatCompletion))
+    embeddings = OpenAIEmbeddings(client=ChatOpenAI())
     docsearch = FAISS.from_documents(texts, embeddings)
     qa = RetrievalQA.from_llm(
-        llm=ChatOpenAI(client=ChatCompletion),
+        llm=ChatOpenAI(),
         retriever=docsearch.as_retriever(),
     )
 
