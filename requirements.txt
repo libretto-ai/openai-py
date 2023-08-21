@@ -67,7 +67,7 @@ sphinxcontrib-applehelp==1.0.6
 sphinxcontrib-devhelp==1.0.5
 sphinxcontrib-htmlhelp==2.0.3
 sphinxcontrib-jsmath==1.0.1
-sphinxcontrib-qthelp==1.0.5
+sphinxcontrib-qthelp==1.0.6
 sphinxcontrib-serializinghtml==1.1.7
 tox==4.8.0
 tqdm==4.66.1
