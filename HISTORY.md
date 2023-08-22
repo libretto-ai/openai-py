@@ -129,3 +129,7 @@
 ## 0.10.0
 
 -   Switch to Poetry for releases
+
+## 0.10.1
+
+-   Add explicit py.typed
