@@ -125,3 +125,7 @@
 ## 0.9.3
 
 -   Simplified requirements a bit
+
+## 0.10.0
+
+-   Switch to Poetry for releases

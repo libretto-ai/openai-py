@@ -3,3 +3,31 @@ line-length = 100
 target_version = ['py311']
 [tool.isort]
 profile = "black"
+
+[tool.poetry]
+name = "im-openai"
+version = "0.10.0"
+description = "Wrapper library for openai to send events to the Imaginary Programming monitor"
+authors = ["Alec Flett <alecf@thegp.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+openai = "^0.27.9"
+aiohttp = "^3.8.5"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.0"
+pytest-asyncio = "^0.21.1"
+langchain = "^0.0.271"
+pre-commit = "^3.3.3"
+black = "^23.7.0"
+flake8 = "^6.1.0"
+faiss-cpu = "^1.7.4"
+Sphinx = "^7.2.2"
+tiktoken = "^0.4.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
