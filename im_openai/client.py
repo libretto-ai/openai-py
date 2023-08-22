@@ -49,7 +49,7 @@ async def send_event(
         event["apiKey"] = api_key
 
     if not api_key and not project_key:
-        logger.warn("No project key or api key set, not sending event")
+        logger.warning("No project key or api key set, not sending event")
         return
 
     if prompt_template_text is not None:

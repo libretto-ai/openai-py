@@ -53,7 +53,7 @@ def format_langchain_value(value: Any) -> Any:
     if value is None:
         return None
 
-    logger.warn("Cannot format value of type %s: %s", type(value), value)
+    logger.warning("Cannot format value of type %s: %s", type(value), value)
     return value
 
 

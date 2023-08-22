@@ -69,7 +69,6 @@ Standalone question:"""
     condense_question_template._lc_kwargs["additional_kwargs"].update(
         ip_api_name=f"{ip_api_name}/condense_question"
     )
-
     qa = ConversationalRetrievalChain.from_llm(
         llm=ChatOpenAI(),
         retriever=docsearch.as_retriever(),

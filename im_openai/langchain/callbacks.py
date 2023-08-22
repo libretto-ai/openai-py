@@ -36,14 +36,14 @@ def record_run_info(run_type: str):
                 run_id = kwargs["run_id"]
                 prev_type = self.run_types.get(run_id, None)
                 if prev_type is not None and prev_type != run_type:
-                    logger.warn(f"converting run {run_id} from {prev_type} to {run_type}")
+                    logger.warning(f"converting run {run_id} from {prev_type} to {run_type}")
                 self.run_types[kwargs["run_id"]] = run_type
                 if "parent_run_id" in kwargs:
                     parent_run_id = kwargs["parent_run_id"]
                     if parent_run_id:
                         self.parent_run_ids[run_id] = parent_run_id
                     elif run_type != "chain":
-                        logger.warn(f"WARNING: parent_run_id is None for {run_type} {run_id}")
+                        logger.warning(f"WARNING: parent_run_id is None for {run_type} {run_id}")
 
             return func(self, *args, **kwargs)
 
@@ -169,9 +169,9 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             api_name = prompt_template._lc_kwargs.get("additional_kwargs", {}).get("ip_api_name")
             self.runs[run_id]["api_name"] = api_name
         elif prompt_template is None:
-            logger.warn("Missing prompt template for chain %s", ".".join(serialized["id"]))
+            logger.warning("Missing prompt template for chain %s", ".".join(serialized["id"]))
         else:
-            logger.warn("Unrecognized prompt template type: %s", type(prompt_template))
+            logger.warning("Unrecognized prompt template type: %s", type(prompt_template))
 
     def _extract_template_from_chain(self, serialized: Dict[str, Any]):
         """Attempt to extract the prompt template from a serialized

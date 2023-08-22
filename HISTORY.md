@@ -121,3 +121,7 @@
 
 -   Fixed typos in docs, clarified using `ip_` parameters
 -   Flushed out working `TemplateText` / `TemplateChat` templates
+
+## 0.9.3
+
+-   Simplified requirements a bit
