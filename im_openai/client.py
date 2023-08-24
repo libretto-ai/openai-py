@@ -13,6 +13,13 @@ import aiohttp
 logger = logging.getLogger(__name__)
 
 
+class SendEventResponse(TypedDict):
+    id: str
+    """The id of the event that was added on the server."""
+    api_name: str
+    """The name of the API that was used or created, in case null api name was used."""
+
+
 async def send_event(
     session: aiohttp.ClientSession,
     api_key: str | None,
@@ -29,7 +36,7 @@ async def send_event(
     prompt: Any | None = None,
     parent_event_id: str | None = None,
     model_params: Dict | None = None,
-) -> str | None:
+) -> SendEventResponse | None:
     """Send an event to Imaginary Dev. Returns the id of the event that was added on the server."""
     PROMPT_REPORTING_URL = os.environ.get(
         "PROMPT_REPORTING_URL", "https://app.imaginary.dev/api/event"
@@ -42,7 +49,7 @@ async def send_event(
         "modelParameters": model_params or {},
     }
 
-    logger.debug(f"Sending event to {PROMPT_REPORTING_URL}")
+    logger.debug(f"Sending event to {PROMPT_REPORTING_URL} {api_name}")
     if project_key is not None:
         event["projectKey"] = project_key
     if api_key is not None:
@@ -91,9 +98,9 @@ async def send_event(
         event["parentEventId"] = str(parent_event_id)
 
     result = await session.post(PROMPT_REPORTING_URL, json=event)
-    json = await result.json()
-    if isinstance(json, dict):
-        return json.get("id")
+    json: SendEventResponse = await result.json()
+
+    return json
 
 
 @asynccontextmanager
@@ -138,14 +145,22 @@ async def event_session(
             model_params=model_params,
         )
         pending_events_sent.append(first_event_sent)
+        event_api_name = api_name
 
         async def complete_event(response):
+            local_api_name = api_name
+            if not event_api_name:
+                print("waiting for first event...")
+                first_event = await first_event_sent
+                print("first event: ", first_event)
+                if first_event:
+                    local_api_name = first_event["api_name"]
             response_time = (time.time() - start) * 1000
             second_event_sent = send_event(
                 session=session,
                 project_key=project_key,
                 api_key=api_key,
-                api_name=api_name,
+                api_name=local_api_name,
                 prompt_event_id=prompt_event_id,
                 prompt_template_text=prompt_template_text,
                 prompt_template_chat=prompt_template_chat,
