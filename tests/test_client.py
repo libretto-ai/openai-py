@@ -51,7 +51,7 @@ async def test_send_event_chat(mock_env_get, mock_post, mock_env):
         )
 
         # Asserting that the returned event id is as expected
-        assert result == "test_event_id"
+        assert result == {"id": "test_event_id"}
 
         assert mock_post.call_count == 2
         mock_post.assert_called_with(
@@ -107,7 +107,7 @@ async def test_send_event_text(mock_env_get, mock_post, mock_env):
         )
 
         # Asserting that the returned event id is as expected
-        assert result == "test_event_id"
+        assert result == {"id": "test_event_id"}
 
         assert mock_post.call_count == 2
         mock_post.assert_called_with(
