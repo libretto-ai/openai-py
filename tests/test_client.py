@@ -35,7 +35,7 @@ async def test_send_event_chat(mock_env_get, mock_post, mock_env):
         result = await send_event(
             session,
             api_key,
-            api_name="test_api_name",
+            prompt_template_name="test_prompt_template_name",
             prompt_event_id="test_prompt_event_id",
         )
         prompt_params = {"param1": "value1", "param2": "value2"}
@@ -43,7 +43,7 @@ async def test_send_event_chat(mock_env_get, mock_post, mock_env):
         result = await send_event(
             session,
             api_key,
-            api_name="test_api_name",
+            prompt_template_name="test_prompt_template_name",
             prompt_event_id="test_prompt_event_id",
             prompt_template_chat=prompt_template_chat,
             prompt_params=prompt_params,
@@ -57,7 +57,7 @@ async def test_send_event_chat(mock_env_get, mock_post, mock_env):
         mock_post.assert_called_with(
             "https://app.imaginary.dev/api/event",
             json={
-                "apiName": "test_api_name",
+                "apiName": "test_prompt_template_name",
                 "params": {"param1": "value1", "param2": "value2"},
                 "prompt": {},
                 "promptEventId": "test_prompt_event_id",
@@ -91,7 +91,7 @@ async def test_send_event_text(mock_env_get, mock_post, mock_env):
         result = await send_event(
             session,
             api_key,
-            api_name="test_api_name",
+            prompt_template_name="test_prompt_template_name",
             prompt_event_id="test_prompt_event_id",
         )
         prompt_params = {"param1": "value1", "param2": "value2"}
@@ -99,7 +99,7 @@ async def test_send_event_text(mock_env_get, mock_post, mock_env):
         result = await send_event(
             session,
             api_key,
-            api_name="test_api_name",
+            prompt_template_name="test_prompt_template_name",
             prompt_event_id="test_prompt_event_id",
             prompt_template_text=prompt_template_text,
             prompt_params=prompt_params,
@@ -113,7 +113,7 @@ async def test_send_event_text(mock_env_get, mock_post, mock_env):
         mock_post.assert_called_with(
             "https://app.imaginary.dev/api/event",
             json={
-                "apiName": "test_api_name",
+                "apiName": "test_prompt_template_name",
                 "params": {"param1": "value1", "param2": "value2"},
                 "prompt": {},
                 "promptEventId": "test_prompt_event_id",

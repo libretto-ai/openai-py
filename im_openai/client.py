@@ -25,7 +25,7 @@ async def send_event(
     api_key: str | None,
     *,
     project_key: str | None = None,
-    api_name: str | None,
+    prompt_template_name: str | None,
     prompt_event_id: str | None = None,
     prompt_template_text: str | None = None,
     prompt_template_chat: List | None = None,
@@ -42,14 +42,14 @@ async def send_event(
         "PROMPT_REPORTING_URL", "https://app.imaginary.dev/api/event"
     )
     event = {
-        "apiName": api_name,
+        "apiName": prompt_template_name,
         "params": {},
         "prompt": prompt or {},
         "promptEventId": prompt_event_id,
         "modelParameters": model_params or {},
     }
 
-    logger.debug(f"Sending event to {PROMPT_REPORTING_URL} {api_name}")
+    logger.debug(f"Sending event to {PROMPT_REPORTING_URL} {prompt_template_name}")
     if project_key is not None:
         event["projectKey"] = project_key
     if api_key is not None:
@@ -107,7 +107,7 @@ async def send_event(
 async def event_session(
     project_key: str | None,
     api_key: str | None,
-    api_name: str | None,
+    prompt_template_name: str | None,
     prompt_template_text: str | None,
     prompt_template_chat: List | None,
     model_params: Dict | None = None,
@@ -120,7 +120,7 @@ async def event_session(
 
     Usage::
 
-        with event_session(project_key, api_name, prompt_text, prompt_event_id) as complete_event:
+        with event_session(project_key, prompt_template_name, prompt_text, prompt_event_id) as complete_event:
             # do something
             complete_event(response)
 
@@ -135,7 +135,7 @@ async def event_session(
             session=session,
             project_key=project_key,
             api_key=api_key,
-            api_name=api_name,
+            prompt_template_name=prompt_template_name,
             prompt_event_id=prompt_event_id,
             prompt_template_text=prompt_template_text,
             prompt_template_chat=prompt_template_chat,
@@ -145,22 +145,20 @@ async def event_session(
             model_params=model_params,
         )
         pending_events_sent.append(first_event_sent)
-        event_api_name = api_name
+        event_prompt_template_name = prompt_template_name
 
         async def complete_event(response):
-            local_api_name = api_name
-            if not event_api_name:
-                print("waiting for first event...")
+            local_prompt_template_name = prompt_template_name
+            if not event_prompt_template_name:
                 first_event = await first_event_sent
-                print("first event: ", first_event)
                 if first_event:
-                    local_api_name = first_event["api_name"]
+                    local_prompt_template_name = first_event["api_name"]
             response_time = (time.time() - start) * 1000
             second_event_sent = send_event(
                 session=session,
                 project_key=project_key,
                 api_key=api_key,
-                api_name=local_api_name,
+                prompt_template_name=local_prompt_template_name,
                 prompt_event_id=prompt_event_id,
                 prompt_template_text=prompt_template_text,
                 prompt_template_chat=prompt_template_chat,

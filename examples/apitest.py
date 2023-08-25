@@ -27,7 +27,7 @@ def main():
         model="gpt-3.5-turbo",
         messages=chat_messages,
         ip_api_key="619dd081-2f72-4eb1-9f90-3d3c3772334d",
-        ip_api_name="test-from-apitest-chat",
+        ip_prompt_template_name="test-from-apitest-chat",
         ip_template_chat=chat_template,
         ip_template_params=ip_template_params,
     )
@@ -38,7 +38,7 @@ def main():
         model="text-davinci-003",
         prompt=prompt_text,
         ip_api_key="619dd081-2f72-4eb1-9f90-3d3c3772334d",
-        ip_api_name="test-from-apitest-completion",
+        ip_prompt_template_name="test-from-apitest-completion",
         ip_template_text=template,
         ip_template_params=ip_template_params,
     )

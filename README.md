@@ -7,7 +7,7 @@ monitor
 
 ## Features
 
--   Patches the openai library to allow user to set an ip_api_key and ip_api_name
+-   Patches the openai library to allow user to set an ip_api_key and ip_prompt_template_name
     for each request
 -   Works out of the box with langchain
 
@@ -16,7 +16,7 @@ monitor
 To send events to Imaginary Programming, you'll need to create a project. From the project you'll need two things:
 
 1. **API key**: (`api_key`) This is generated for the project and is used to identify the project and environment (dev, staging, prod) that the event is coming from.
-2. **Template Name**: (`api_name`) This uniquely identifies a particular prompt that you are using. This allows projects to have multiple prompts. You do not need to generate this in advance: if the Template Name does not exist, then it will be created automatically. This can be in any format but we recommend using a dash-separated format, e.g. `my-prompt-name`.
+2. **Template Name**: (`prompt_template_name`) This uniquely identifies a particular prompt that you are using. This allows projects to have multiple prompts. You do not need to generate this in advance: if the Template Name does not exist, then it will be created automatically. This can be in any format but we recommend using a dash-separated format, e.g. `my-prompt-name`.
 
 **Note:** if you don't pass in an Template Name, new revisions of the same prompt will show up as different prompt templates in Templatest.
 
@@ -32,7 +32,7 @@ Use `TemplateChat` For the ChatCompletion APIs:
 ```python
 from im_openai import patched_openai, TemplateChat
 
-with patched_openai(api_key="...", api_name="sport-emoji"):
+with patched_openai(api_key="...", prompt_template_name="sport-emoji"):
     import openai
 
     completion = openai.ChatCompletion.create(
@@ -50,7 +50,7 @@ Use `TemplateText` for the Completion API:
 ```python
 from im_openai import patched_openai, TemplateText
 
-with patched_openai(api_key="...", api_name="sport-emoji"):
+with patched_openai(api_key="...", prompt_template_name="sport-emoji"):
     import openai
 
     completion = openai.Completion.create(
@@ -68,7 +68,7 @@ Rather than using a context manager, you can patch the library once at startup:
 
 ```python
 from im_openai import patch_openai
-patch_openai(api_key="...", api_name="...")
+patch_openai(api_key="...", prompt_template_name="...")
 ```
 
 Then, you can use the patched library as normal:
@@ -97,7 +97,7 @@ completion = openai.ChatCompletion.create(
 
     # call configuration
     ip_api_key="...",
-    ip_api_name="sport-emoji",
+    ip_prompt_template_name="sport-emoji",
 
     # Here the prompt and parameters is passed seperately
     ip_template_params={"sport": "soccer"},
@@ -117,7 +117,7 @@ Using a context manager: (recommended)
 from langchain import LLMChain, PromptTemplate, OpenAI
 from im_openai.langchain import prompt_watch_tracing
 
-with prompt_watch_tracing(api_key="4b2a6608-86cd-4819-aba6-479f9edd8bfb", api_name="sport-emoji"):
+with prompt_watch_tracing(api_key="4b2a6608-86cd-4819-aba6-479f9edd8bfb", prompt_template_name="sport-emoji"):
     chain = LLMChain(llm=OpenAI(),
         prompt=PromptTemplate.from_template("What is the capital of {country}?"))
     capital = chain.run({"country": "Sweden"})
@@ -125,14 +125,14 @@ with prompt_watch_tracing(api_key="4b2a6608-86cd-4819-aba6-479f9edd8bfb", api_na
 
 The `api_key` parameter is visible from your project's settings page.
 
-the api_name parameter can also be passed directly to a template when you create it, so that it can be tracked separately from other templates:
+the prompt_template_name parameter can also be passed directly to a template when you create it, so that it can be tracked separately from other templates:
 
 ```python
 from langchain import OpenAI, PromptTemplate, LLMChain
 from im_openai.langchain import prompt_watch_tracing
 
-# The default api_name is "default-questions"
-with prompt_watch_tracing(api_key="4b2a6608-86cd-4819-aba6-479f9edd8bfb", api_name="default-questions"):
+# The default prompt_template_name is "default-questions"
+with prompt_watch_tracing(api_key="4b2a6608-86cd-4819-aba6-479f9edd8bfb", prompt_template_name="default-questions"):
     prompt = PromptTemplate.from_template("""
 Please answer the following question: {question}.
 """)
@@ -144,7 +144,7 @@ Please answer the following question: {question}.
 Please greet our newest forum member, {user}.
 Be nice and enthusiastic but not overwhelming.
 """,
-        additional_kwargs={"ip_api_name": "user-greeting"})
+        additional_kwargs={"ip_prompt_template_name": "user-greeting"})
     llm = LLMChain(prompt=greeting_prompt, llm=OpenAI(openai_api_key=...))
     llm.run(user="Bob")
 ```
@@ -156,7 +156,7 @@ You can patch directly:
 ```python
 from im_openai.langchain import enable_prompt_watch_tracing, disable_prompt_watch_tracing
 
-old_tracer = enable_prompt_watch_tracing(api_key="4b2a6608-86cd-4819-aba6-479f9edd8bfb", api_name="sport-emoji")
+old_tracer = enable_prompt_watch_tracing(api_key="4b2a6608-86cd-4819-aba6-479f9edd8bfb", prompt_template_name="sport-emoji")
 
 prompt = PromptTemplate.from_template("""
 Please answer the following question: {question}.
@@ -168,7 +168,7 @@ llm.run(question="What is the meaning of life?")
 greeting_prompt = PromptTemplate.from_template("""
 Please greet our newest forum member, {user}. Be nice and enthusiastic but not overwhelming.
 """,
-    additional_kwargs={"ip_api_name": "user-greeting"})
+    additional_kwargs={"ip_prompt_template_name": "user-greeting"})
 llm = LLMChain(prompt=greeting_prompt, llm=OpenAI(openai_api_key=...))
 llm.run(user="Bob")
 

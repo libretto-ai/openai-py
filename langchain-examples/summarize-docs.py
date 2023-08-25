@@ -16,7 +16,7 @@ logger = logging.getLogger("im_openai")
 logger.setLevel(logging.INFO)
 
 with langchain_util.prompt_watch_tracing(
-    "f1ed34de-5069-48f9-a513-6095c45e3a30", api_name=os.path.basename(__file__)
+    "f1ed34de-5069-48f9-a513-6095c45e3a30", prompt_template_name=os.path.basename(__file__)
 ):
     text_splitter = RecursiveCharacterTextSplitter(
         # Set a really small chunk size, just to show.

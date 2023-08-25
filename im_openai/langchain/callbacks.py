@@ -6,7 +6,7 @@ import time
 import uuid
 from contextlib import contextmanager
 from itertools import zip_longest
-from typing import Any, Dict, List, Optional, ParamSpec, Union, cast
+from typing import Any, Dict, List, Optional, TypedDict, Union, _SpecialForm, cast
 from uuid import UUID
 
 import aiohttp
@@ -24,6 +24,19 @@ from . import util
 logger = logging.getLogger(__name__)
 
 from functools import wraps
+
+
+class RunInfo(TypedDict, total=False):
+    prompt_template_name: Optional[str]
+    inputs: Dict[str, Any]
+    parent_run_id: Optional[UUID]
+    prompt_event_id: UUID
+    prompt_template: Optional[Any]
+    api_name: Optional[Optional[str]]
+    now: Optional[float]
+    prompts: Optional[List[str]]
+    model_params: Dict[str, Any]
+    messages: Optional[List[List[BaseMessage]]]
 
 
 def record_run_info(run_type: str):
@@ -55,21 +68,21 @@ def record_run_info(run_type: str):
 class PromptWatchCallbacks(BaseCallbackHandler):
     api_key: str
     project_key: str | None
-    api_name: str
+    prompt_template_name: str | None
 
     template_chat: List[Dict] | None
     template_text: str | None
 
     chat_id: str | None = None
 
-    runs: Dict[UUID, Dict[str, Any]] = {}
+    runs: Dict[UUID, RunInfo] = {}
     """A dictionary of information about a run, keyed by run_id"""
     parent_run_ids: Dict[UUID, UUID] = {}
     """In case self.runs is missing a run, we can walk up the parent chain to find it"""
 
     run_types: Dict[UUID, str] = {}
 
-    server_event_ids: Dict[UUID, str | None] = {}
+    server_event_ids: Dict[UUID, client.SendEventResponse | None] = {}
     """Mapping of run_id to server event id"""
 
     valid_namespaces: List[str] | None = None
@@ -79,9 +92,10 @@ class PromptWatchCallbacks(BaseCallbackHandler):
 
     def __init__(
         self,
-        api_key: str,
-        api_name: str,
         *,
+        api_key: str,
+        api_name: str | None = None,
+        prompt_template_name: str | None = None,
         project_key: Optional[str] = None,
         template_text: Optional[str] = None,
         template_chat: Optional[List[Union[BaseMessagePromptTemplate, BaseMessage]]] = None,
@@ -93,7 +107,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         Args:
             api_key (str): The Imaginary Programming API key
             project_key (str): The Imaginary Programming project key
-            api_name (str): The Imaginary Programming API name
+            prompt_template_name (str): The Imaginary Programming API name
             template_text (Optional[str], optional): The template to use for completion events. Defaults to None.
             template_chat (Optional[List[Union[BaseMessagePromptTemplate, BaseMessage]]], optional): The template to use for chat events. Defaults to None.
         """
@@ -103,7 +117,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             raise ValueError("api_key must be provided")
         self.valid_namespaces = valid_namespaces
         self.runs = {}
-        self.api_name = api_name
+        self.prompt_template_name = prompt_template_name or api_name
         self.chat_id = chat_id
         if template_text is not None:
             self.template_text = template_text
@@ -153,11 +167,19 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             ".".join(serialized["id"]),
         )
 
-        self.runs[run_id] = {
+        run: RunInfo = {
             "inputs": inputs,
             "parent_run_id": parent_run_id,
             "prompt_event_id": uuid.uuid4(),
+            "model_params": {},
+            "prompt_template_name": None,
+            "api_name": None,
+            "messages": [],
+            "now": None,
+            "prompt_template": None,
+            "prompts": [],
         }
+        self.runs[run_id] = run
 
         # First try to load the chain
         prompt_template = self._extract_template_from_chain(serialized)
@@ -165,9 +187,11 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         if isinstance(prompt_template, BasePromptTemplate):
             self.runs[run_id]["prompt_template"] = prompt_template
 
-            # User might have overridden the api_name
-            api_name = prompt_template._lc_kwargs.get("additional_kwargs", {}).get("ip_api_name")
-            self.runs[run_id]["api_name"] = api_name
+            # User might have overridden the prompt_template_name
+            prompt_template_name: str | None = prompt_template._lc_kwargs.get(
+                "additional_kwargs", {}
+            ).get("ip_prompt_template_name")
+            self.runs[run_id]["api_name"] = prompt_template_name
         elif prompt_template is None:
             logger.warning("Missing prompt template for chain %s", ".".join(serialized["id"]))
         else:
@@ -281,7 +305,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         if not run:
             logger.warning("on_llm_start Missing run %s", run_id)
             return
-        api_name = self._get_run_info(run_id, "api_name")
+        prompt_template_name = self._get_run_info(run_id, "api_name")
         model_params = _extract_openai_params(serialized)
         run["prompts"] = prompts
         run["now"] = time.time()
@@ -297,7 +321,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
                 prompts,
                 parent_event_id=parent_run_id,
                 model_params=model_params,
-                api_name=api_name,
+                prompt_template_name=prompt_template_name,
                 chat_id=self.chat_id,
             )
         )
@@ -323,7 +347,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         run = self._get_run(run_id)
         if not run:
             return
-        api_name = self._get_run_info(run_id, "api_name")
+        prompt_template_name = self._get_run_info(run_id, "api_name")
         model_params = _extract_openai_params(serialized)
         run["messages"] = messages
         run["now"] = time.time()
@@ -337,7 +361,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
                 messages,
                 parent_event_id=parent_run_id,
                 model_params=model_params,
-                api_name=api_name,
+                prompt_template_name=prompt_template_name,
                 chat_id=self.chat_id,
             )
         )
@@ -365,8 +389,10 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             return
         now = time.time()
         model_params = run["model_params"]
-        response_time = (now - run["now"]) * 1000
-        api_name = self._get_run_info(run_id, "api_name")
+        response_time = None
+        if "now" in run:
+            response_time = (now - cast(float, run["now"])) * 1000
+        prompt_template_name = self._get_run_info(run_id, "api_name")
 
         if "messages" in run:
             template_chat = self._resolve_chat_template(run_id)
@@ -375,18 +401,18 @@ class PromptWatchCallbacks(BaseCallbackHandler):
                     run_id,
                     template_chat,
                     run["inputs"],
-                    run["messages"],
+                    run["messages"] or [],
                     model_params,
                     response,
                     response_time,
                     parent_event_id=parent_run_id,
-                    api_name=api_name,
+                    prompt_template_name=prompt_template_name,
                     chat_id=self.chat_id,
                 )
             )
         elif "prompts" in run:
             template_text = self._get_run_info(run_id, "prompt_template_text") or self.template_text
-            api_name = self._get_run_info(run_id, "api_name")
+            prompt_template_name = self._get_run_info(run_id, "api_name")
             asyncio.run(
                 self._async_send_completion(
                     run_id,
@@ -397,7 +423,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
                     model_params=model_params,
                     result=response,
                     response_time=response_time,
-                    api_name=api_name,
+                    prompt_template_name=prompt_template_name,
                     chat_id=self.chat_id,
                 )
             )
@@ -444,7 +470,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         response_time: float | None = None,
         parent_event_id: UUID | None = None,
         model_params: Dict | None = None,
-        api_name: str | None = None,
+        prompt_template_name: str | None = None,
         chat_id: str | None = None,
         is_chat: bool = False,
     ):
@@ -477,15 +503,15 @@ class PromptWatchCallbacks(BaseCallbackHandler):
 
                 # TODO: gather these up and send them all at once
                 prompt_event_id = self._get_server_event_id(run_id)
-                id = await client.send_event(
+                response = await client.send_event(
                     session,
                     project_key=self.project_key,
                     api_key=self.api_key,
-                    api_name=api_name or self.api_name,
+                    prompt_template_name=prompt_template_name or self.prompt_template_name,
                     prompt_template_text=prompt_template_text,  # type: ignore
                     prompt_template_chat=prompt_template_chat,  # type: ignore
                     prompt_params=json_inputs,
-                    prompt_event_id=prompt_event_id,
+                    prompt_event_id=prompt_event_id["id"] if prompt_event_id else None,
                     model_params=model_params,
                     chat_id=chat_id,
                     response=response_text,
@@ -493,8 +519,8 @@ class PromptWatchCallbacks(BaseCallbackHandler):
                     prompt=prompt,
                     parent_event_id=str(parent_event_id) if parent_event_id else None,
                 )
-                if id:
-                    self.server_event_ids[run_id] = id
+                if response:
+                    self.server_event_ids[run_id] = response
 
     async def _async_send_chat(
         self,
@@ -506,7 +532,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         result: LLMResult | None = None,
         response_time: float | None = None,
         parent_event_id: UUID | None = None,
-        api_name: str | None = None,
+        prompt_template_name: str | None = None,
         chat_id: str | None = None,
     ):
         await self._async_send(
@@ -518,7 +544,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             response_time=response_time,
             parent_event_id=parent_event_id,
             model_params=model_params,
-            api_name=api_name,
+            prompt_template_name=prompt_template_name,
             chat_id=chat_id,
             is_chat=True,
         )
@@ -534,7 +560,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         model_params: Dict | None = None,
         result: LLMResult | None = None,
         response_time: float | None = None,
-        api_name: str | None = None,
+        prompt_template_name: str | None = None,
         chat_id: str | None = None,
     ):
         await self._async_send(
@@ -546,7 +572,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             response_time=response_time,
             parent_event_id=parent_event_id,
             model_params=model_params,
-            api_name=api_name,
+            prompt_template_name=prompt_template_name,
             is_chat=False,
         )
 

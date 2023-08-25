@@ -25,7 +25,7 @@ from langchain.schema import Generation, HumanMessage, LLMResult, SystemMessage
 from im_openai import langchain as langchain_util
 
 api_key = "abc"
-api_name = "def"
+prompt_template_name = "def"
 
 
 @pytest.fixture(autouse=True)
@@ -51,7 +51,9 @@ def mock_event_loop():
 
 @pytest.fixture()
 def pwc():
-    return langchain_util.PromptWatchCallbacks(api_key=api_key, api_name=api_name)
+    return langchain_util.PromptWatchCallbacks(
+        api_key=api_key, prompt_template_name=prompt_template_name
+    )
 
 
 def test_llm_start(pwc: langchain_util.PromptWatchCallbacks, mock_send_event: MagicMock):
@@ -67,7 +69,7 @@ def test_llm_start(pwc: langchain_util.PromptWatchCallbacks, mock_send_event: Ma
     mock_send_event.assert_called_once_with(
         ANY,
         api_key=api_key,
-        api_name=api_name,
+        prompt_template_name=prompt_template_name,
         project_key=None,
         prompt_template_text="What is a good name for a company that makes {product}?",
         prompt_template_chat=None,
@@ -114,7 +116,7 @@ def test_chat_model_start(pwc: langchain_util.PromptWatchCallbacks, mock_send_ev
     mock_send_event.assert_called_once_with(
         ANY,
         api_key=api_key,
-        api_name=api_name,
+        prompt_template_name=prompt_template_name,
         project_key=None,
         prompt_template_text=None,
         prompt_template_chat=[
@@ -161,7 +163,7 @@ def test_chat_model_template_no_vars(
     mock_send_event.assert_called_once_with(
         ANY,
         api_key=api_key,
-        api_name=api_name,
+        prompt_template_name=prompt_template_name,
         project_key=None,
         prompt_template_text=None,
         prompt_template_chat=None,
@@ -193,7 +195,7 @@ def test_chat_model_parent(
     new_event_id = uuid.uuid4()
     # new_event_future_id = asyncio.futures.Future()
     # new_event_future_id.set_result(new_event_id)
-    mock_send_event.return_value = str(new_event_id)
+    mock_send_event.return_value = {"id": str(new_event_id)}
     run_id = uuid.uuid4()
     parent_run_id = uuid.uuid4()
     template_str = (
@@ -222,7 +224,7 @@ def test_chat_model_parent(
     mock_send_event.assert_called_once_with(
         ANY,
         api_key=api_key,
-        api_name=api_name,
+        prompt_template_name=prompt_template_name,
         project_key=None,
         prompt_template_text=None,
         prompt_template_chat=[
@@ -251,7 +253,7 @@ def test_chat_model_parent(
     mock_send_event.assert_called_once_with(
         ANY,
         api_key=api_key,
-        api_name=api_name,
+        prompt_template_name=prompt_template_name,
         project_key=None,
         prompt_template_text=None,
         prompt_template_chat=[

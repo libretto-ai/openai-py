@@ -34,10 +34,10 @@ logger.setLevel(logging.INFO)
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-ip_api_name = os.path.basename(__file__)
+ip_prompt_template_name = os.path.basename(__file__)
 with langchain_util.prompt_watch_tracing(
     "f1ed34de-5069-48f9-a513-6095c45e3a30",
-    api_name=ip_api_name,
+    prompt_template_name=ip_prompt_template_name,
     chat_id=str(uuid.uuid4()),
 ):
     loader = TextLoader(os.path.join(os.path.dirname(__file__), "state_of_the_union.txt"))
@@ -67,7 +67,7 @@ Standalone question:"""
     if "additional_kwargs" not in condense_question_template._lc_kwargs:
         condense_question_template._lc_kwargs["additional_kwargs"] = {}
     condense_question_template._lc_kwargs["additional_kwargs"].update(
-        ip_api_name=f"{ip_api_name}/condense_question"
+        ip_prompt_template_name=f"{ip_prompt_template_name}/condense_question"
     )
     qa = ConversationalRetrievalChain.from_llm(
         llm=ChatOpenAI(),

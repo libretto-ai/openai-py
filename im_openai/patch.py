@@ -13,7 +13,7 @@ def patch_openai_class(
     cls,
     get_prompt_template: Callable,
     get_result: Callable,
-    api_name: Optional[str] = None,
+    prompt_template_name: Optional[str] = None,
     chat_id: Optional[str] = None,
 ):
     oldcreate = cls.create
@@ -23,6 +23,7 @@ def patch_openai_class(
         *args,
         ip_project_key=None,
         ip_api_key=None,
+        ip_prompt_template_name: str | None = None,
         ip_api_name: str | None = None,
         ip_event_id: str | None = None,
         ip_template_text: str | None = None,
@@ -75,7 +76,7 @@ def patch_openai_class(
         async with event_session(
             project_key=ip_project_key,
             api_key=ip_api_key,
-            api_name=ip_api_name or api_name,
+            prompt_template_name=ip_prompt_template_name or prompt_template_name or ip_api_name,
             model_params=model_params,
             prompt_template_text=ip_template_text,
             prompt_template_chat=ip_template_chat,
@@ -113,7 +114,9 @@ def patch_openai_class(
 
 
 def patch_openai(
-    api_key: Optional[str] = None, api_name: Optional[str] = None, chat_id: Optional[str] = None
+    api_key: Optional[str] = None,
+    prompt_template_name: Optional[str] = None,
+    chat_id: Optional[str] = None,
 ):
     """Patch openai APIs to add logging capabilities.
 
@@ -135,7 +138,7 @@ def patch_openai(
         openai.ChatCompletion,
         get_chat_prompt,
         lambda x: x["choices"][0]["message"]["content"],
-        api_name=api_name,
+        prompt_template_name=prompt_template_name,
         chat_id=chat_id,
     )
 
@@ -148,7 +151,9 @@ def patch_openai(
 
 @contextmanager
 def patched_openai(
-    api_key: Optional[str] = None, api_name: Optional[str] = None, chat_id: Optional[str] = None
+    api_key: Optional[str] = None,
+    prompt_template_name: Optional[str] = None,
+    chat_id: Optional[str] = None,
 ):
     """Simple context manager to wrap patching openai. Usage:
 
@@ -157,6 +162,6 @@ def patched_openai(
         # do stuff
     ```
     """
-    unpatch = patch_openai(api_name=api_name, chat_id=chat_id)
+    unpatch = patch_openai(prompt_template_name=prompt_template_name, chat_id=chat_id)
     yield
     unpatch()
