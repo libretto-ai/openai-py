@@ -114,12 +114,13 @@ For langchain, you can directly patch, or use a context manager before setting u
 Using a context manager: (recommended)
 
 ```python
-from langchain import LLMChain
+from langchain import LLMChain, PromptTemplate, OpenAI
 from im_openai.langchain import prompt_watch_tracing
 
-with prompt_watch_tracing("4b2a6608-86cd-4819-aba6-479f9edd8bfb", "sport-emoji"):
-    chain = LLMChain(llm=...)
-    chain.run("Hello world", inputs={"name": "world"})
+with prompt_watch_tracing(api_key="4b2a6608-86cd-4819-aba6-479f9edd8bfb", api_name="sport-emoji"):
+    chain = LLMChain(llm=OpenAI(),
+        prompt=PromptTemplate.from_template("What is the capital of {country}?"))
+    capital = chain.run({"country": "Sweden"})
 ```
 
 The `api_key` parameter is visible from your project's settings page.
@@ -131,19 +132,18 @@ from langchain import OpenAI, PromptTemplate, LLMChain
 from im_openai.langchain import prompt_watch_tracing
 
 # The default api_name is "default-questions"
-with prompt_watch_tracing("4b2a6608-86cd-4819-aba6-479f9edd8bfb", "default-questions"):
-    prompt = PromptTemplate("""
+with prompt_watch_tracing(api_key="4b2a6608-86cd-4819-aba6-479f9edd8bfb", api_name="default-questions"):
+    prompt = PromptTemplate.from_template("""
 Please answer the following question: {question}.
-""",
-        input_variables=["question"])
+""")
     llm = LLMChain(prompt=prompt, llm=OpenAI())
     llm.run(question="What is the meaning of life?")
 
     # Track user greetings separately under the `user-greeting` api name
-    greeting_prompt = PromptTemplate("""
-Please greet our newest forum member, {user}. Be nice and enthusiastic but not overwhelming.
+    greeting_prompt = PromptTemplate.from_template("""
+Please greet our newest forum member, {user}.
+Be nice and enthusiastic but not overwhelming.
 """,
-        input_variables=["user"],
         additional_kwargs={"ip_api_name": "user-greeting"})
     llm = LLMChain(prompt=greeting_prompt, llm=OpenAI(openai_api_key=...))
     llm.run(user="Bob")
@@ -156,20 +156,18 @@ You can patch directly:
 ```python
 from im_openai.langchain import enable_prompt_watch_tracing, disable_prompt_watch_tracing
 
-old_tracer = enable_prompt_watch_tracing("4b2a6608-86cd-4819-aba6-479f9edd8bfb", "sport-emoji")
+old_tracer = enable_prompt_watch_tracing(api_key="4b2a6608-86cd-4819-aba6-479f9edd8bfb", api_name="sport-emoji")
 
-prompt = PromptTemplate("""
+prompt = PromptTemplate.from_template("""
 Please answer the following question: {question}.
-""",
-    input_variables=["question"])
+""")
 llm = LLMChain(prompt=prompt, llm=OpenAI())
 llm.run(question="What is the meaning of life?")
 
 # Track user greetings separately under the `user-greeting` api name
-greeting_prompt = PromptTemplate("""
+greeting_prompt = PromptTemplate.from_template("""
 Please greet our newest forum member, {user}. Be nice and enthusiastic but not overwhelming.
 """,
-    input_variables=["user"],
     additional_kwargs={"ip_api_name": "user-greeting"})
 llm = LLMChain(prompt=greeting_prompt, llm=OpenAI(openai_api_key=...))
 llm.run(user="Bob")
