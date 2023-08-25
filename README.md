@@ -2,15 +2,8 @@
 
 [![image](https://img.shields.io/pypi/v/im_openai.svg)](https://pypi.python.org/pypi/im_openai)
 
-[![image](https://img.shields.io/travis/alecf/im_openai.svg)](https://travis-ci.com/alecf/im_openai)
-
-[![Documentation Status](https://readthedocs.org/projects/im-openai/badge/?version=latest)](https://im-openai.readthedocs.io/en/latest/?version=latest)
-
 Wrapper library for openai to send events to the Imaginary Programming
 monitor
-
--   Free software: MIT license
--   Documentation: <https://im-openai.readthedocs.io>.
 
 ## Features
 
@@ -27,7 +20,8 @@ To send events to Imaginary Programming, you'll need to create a project. From t
 
 ### OpenAI
 
-You can use the `patched_openai` context manager to patch your code.
+You can use the `patched_openai` context manager to patch your code that uses
+the existing OpenAI client library:
 
 To allow our tools to separate the "prompt" from the "prompt parameters", use `TemplateChat` and `TemplateText` to create templates.
 
@@ -72,7 +66,7 @@ Rather than using a context manager, you can patch the library once at startup:
 
 ```python
 from im_openai import patch_openai
-patch_openai(api_key="...")
+patch_openai(api_key="...", api_name="...")
 ```
 
 Then, you can use the patched library as normal:
@@ -90,6 +84,9 @@ completion = openai.ChatCompletion.create(
 While the use of `TemplateText` and `TemplateChat` are preferred, Most of the parameters passed during patch can also be passed directly to the `create()`, with an `ip_` prefix.
 
 ```python
+from im_openai import patch_openai
+patch_openai()
+
 completion = openai.ChatCompletion.create(
     model="gpt-3.5-turbo",
 
@@ -115,6 +112,7 @@ For langchain, you can directly patch, or use a context manager before setting u
 Using a context manager: (recommended)
 
 ```python
+from langchain import LLMChain
 from im_openai.langchain import prompt_watch_tracing
 
 with prompt_watch_tracing("4b2a6608-86cd-4819-aba6-479f9edd8bfb", "sport-emoji"):
@@ -128,9 +126,10 @@ the api_name parameter can also be passed directly to a template when you create
 
 ```python
 from langchain import OpenAI, PromptTemplate, LLMChain
+from im_openai.langchain import prompt_watch_tracing
 
 with prompt_watch_tracing("4b2a6608-86cd-4819-aba6-479f9edd8bfb", "default-questions"):
-    template = PromptTemplate("""
+    prompt = PromptTemplate("""
 Please answer the following question: {question}.
 """,
         input_variables=["question"])
@@ -143,9 +142,8 @@ Please greet our newest forum member, {user}. Be nice and enthusiastic but not o
 """,
         input_variables=["user"],
         additional_kwargs={"ip_api_name": "user-greeting"})
-    llm = LLMChain(prompt=prompt, llm=OpenAI(openai_api_key=...))
+    llm = LLMChain(prompt=greeting_prompt, llm=OpenAI(openai_api_key=...))
     llm.run(user="Bob")
-
 ```
 
 #### Advanced usage
@@ -153,7 +151,7 @@ Please greet our newest forum member, {user}. Be nice and enthusiastic but not o
 You can patch directly:
 
 ```python
-from im_openai.langchain import prompt_watch_tracing
+from im_openai.langchain import enable_prompt_watch_tracing, disable_prompt_watch_tracing
 
 old_tracer = enable_prompt_watch_tracing("emojification", "sport-emoji")
 template_chat=ChatPromptTemplate.from_messages([{
