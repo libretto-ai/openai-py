@@ -133,3 +133,7 @@
 ## 0.10.1
 
 -   Add explicit py.typed
+
+## 0.11.0
+
+-   Breaking change: changed api_name to prompt_template_name
