@@ -137,3 +137,7 @@
 ## 0.11.0
 
 -   Breaking change: changed api_name to prompt_template_name
+
+## 0.12.0
+
+-   Made event sending happen on a background thread
