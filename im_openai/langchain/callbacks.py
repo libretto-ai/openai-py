@@ -305,26 +305,10 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         if not run:
             logger.warning("on_llm_start Missing run %s", run_id)
             return
-        prompt_template_name = self._get_run_info(run_id, "api_name")
         model_params = _extract_openai_params(serialized)
         run["prompts"] = prompts
         run["now"] = time.time()
         run["model_params"] = model_params
-
-        template_text = self._resolve_completion_template(run_id)
-        # TODO: need to generate a new event id for each prompt
-        asyncio.run(
-            self._async_send_completion(
-                run_id,
-                template_text,
-                run["inputs"],
-                prompts,
-                parent_event_id=parent_run_id,
-                model_params=model_params,
-                prompt_template_name=prompt_template_name,
-                chat_id=self.chat_id,
-            )
-        )
 
     @record_run_info("llm")
     def on_chat_model_start(
@@ -347,24 +331,10 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         run = self._get_run(run_id)
         if not run:
             return
-        prompt_template_name = self._get_run_info(run_id, "api_name")
         model_params = _extract_openai_params(serialized)
         run["messages"] = messages
         run["now"] = time.time()
         run["model_params"] = model_params
-        template_chat = self._resolve_chat_template(run_id)
-        asyncio.run(
-            self._async_send_chat(
-                run_id,
-                template_chat,
-                run["inputs"],
-                messages,
-                parent_event_id=parent_run_id,
-                model_params=model_params,
-                prompt_template_name=prompt_template_name,
-                chat_id=self.chat_id,
-            )
-        )
 
     @record_run_info("llm")
     def on_llm_end(
@@ -396,36 +366,32 @@ class PromptWatchCallbacks(BaseCallbackHandler):
 
         if "messages" in run:
             template_chat = self._resolve_chat_template(run_id)
-            asyncio.run(
-                self._async_send_chat(
-                    run_id,
-                    template_chat,
-                    run["inputs"],
-                    run["messages"] or [],
-                    model_params,
-                    response,
-                    response_time,
-                    parent_event_id=parent_run_id,
-                    prompt_template_name=prompt_template_name,
-                    chat_id=self.chat_id,
-                )
+            self._send_chat(
+                run_id,
+                template_chat,
+                run["inputs"],
+                run["messages"] or [],
+                model_params,
+                response,
+                response_time,
+                parent_event_id=parent_run_id,
+                prompt_template_name=prompt_template_name,
+                chat_id=self.chat_id,
             )
         elif "prompts" in run:
             template_text = self._get_run_info(run_id, "prompt_template_text") or self.template_text
             prompt_template_name = self._get_run_info(run_id, "api_name")
-            asyncio.run(
-                self._async_send_completion(
-                    run_id,
-                    template_text,
-                    run["inputs"],
-                    run["prompts"],
-                    parent_event_id=parent_run_id,
-                    model_params=model_params,
-                    result=response,
-                    response_time=response_time,
-                    prompt_template_name=prompt_template_name,
-                    chat_id=self.chat_id,
-                )
+            self._send_completion(
+                run_id,
+                template_text,
+                run["inputs"],
+                run["prompts"] or [],
+                parent_event_id=parent_run_id,
+                model_params=model_params,
+                result=response,
+                response_time=response_time,
+                prompt_template_name=prompt_template_name,
+                chat_id=self.chat_id,
             )
         else:
             logger.warning("Missing prompts or messages in run %s %s", run_id, run)
@@ -459,7 +425,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         if run_id in self.runs:
             del self.runs[run_id]
 
-    async def _async_send(
+    def _send_event(
         self,
         run_id: UUID,
         template: List[Dict] | str | None,
@@ -478,51 +444,47 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         parent_event_id = run_id
         while parent_event_id in self.parent_run_ids:
             parent_event_id = self.parent_run_ids[parent_event_id]
-        async with aiohttp.ClientSession() as session:
-            generations_lists = result.generations if result else []
-            for iteration, generations in zip_longest(iterations, generations_lists):
-                response_text = "".join(g.text for g in generations) if generations else None
-                json_inputs = {
-                    key: util.format_langchain_value(value) for key, value in inputs.items()
-                }
-                model_params = model_params.copy() if model_params else {}
-                if is_chat:
-                    model_params["modelType"] = "chat"
-                    prompt = (
-                        {"chat": util.format_chat_template(iteration)}  # type: ignore
-                        if not template
-                        else None
-                    )
-                    prompt_template_text = None
-                    prompt_template_chat = template
-                else:
-                    model_params["modelType"] = "completion"
-                    prompt = {"completion": iteration} if not template else None
-                    prompt_template_text = template
-                    prompt_template_chat = None
-
-                # TODO: gather these up and send them all at once
-                prompt_event_id = self._get_server_event_id(run_id)
-                response = await client.send_event(
-                    session,
-                    project_key=self.project_key,
-                    api_key=self.api_key,
-                    prompt_template_name=prompt_template_name or self.prompt_template_name,
-                    prompt_template_text=prompt_template_text,  # type: ignore
-                    prompt_template_chat=prompt_template_chat,  # type: ignore
-                    prompt_params=json_inputs,
-                    prompt_event_id=prompt_event_id["id"] if prompt_event_id else None,
-                    model_params=model_params,
-                    chat_id=chat_id,
-                    response=response_text,
-                    response_time=response_time,
-                    prompt=prompt,
-                    parent_event_id=str(parent_event_id) if parent_event_id else None,
+        generations_lists = result.generations if result else []
+        for iteration, generations in zip_longest(iterations, generations_lists):
+            response_text = "".join(g.text for g in generations) if generations else None
+            json_inputs = {key: util.format_langchain_value(value) for key, value in inputs.items()}
+            model_params = model_params.copy() if model_params else {}
+            if is_chat:
+                model_params["modelType"] = "chat"
+                prompt = (
+                    {"chat": util.format_chat_template(iteration)}  # type: ignore
+                    if not template
+                    else None
                 )
-                if response:
-                    self.server_event_ids[run_id] = response
+                prompt_template_text = None
+                prompt_template_chat = template
+            else:
+                model_params["modelType"] = "completion"
+                prompt = {"completion": iteration} if not template else None
+                prompt_template_text = template
+                prompt_template_chat = None
 
-    async def _async_send_chat(
+            # TODO: gather these up and send them all at once
+            prompt_event_id = self._get_server_event_id(run_id)
+            response = client.send_event_background(
+                project_key=self.project_key,
+                api_key=self.api_key,
+                prompt_template_name=prompt_template_name or self.prompt_template_name,
+                prompt_template_text=prompt_template_text,  # type: ignore
+                prompt_template_chat=prompt_template_chat,  # type: ignore
+                prompt_params=json_inputs,
+                prompt_event_id=prompt_event_id["id"] if prompt_event_id else None,
+                model_params=model_params,
+                chat_id=chat_id,
+                response=response_text,
+                response_time=response_time,
+                prompt=prompt,
+                parent_event_id=str(parent_event_id) if parent_event_id else None,
+            )
+            if response:
+                self.server_event_ids[run_id] = response
+
+    def _send_chat(
         self,
         run_id: UUID,
         template_chats: List[Dict] | None,
@@ -535,7 +497,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         prompt_template_name: str | None = None,
         chat_id: str | None = None,
     ):
-        await self._async_send(
+        self._send_event(
             run_id,
             template_chats,
             inputs,
@@ -549,7 +511,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             is_chat=True,
         )
 
-    async def _async_send_completion(
+    def _send_completion(
         self,
         prompt_event_id: UUID,
         template_text: str | None,
@@ -563,7 +525,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         prompt_template_name: str | None = None,
         chat_id: str | None = None,
     ):
-        await self._async_send(
+        self._send_event(
             prompt_event_id,
             template_text,
             inputs,
@@ -573,6 +535,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             parent_event_id=parent_event_id,
             model_params=model_params,
             prompt_template_name=prompt_template_name,
+            chat_id=chat_id,
             is_chat=False,
         )
 

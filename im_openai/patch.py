@@ -18,7 +18,7 @@ def patch_openai_class(
 ):
     oldcreate = cls.create
 
-    async def local_create(
+    def local_create(
         cls,
         *args,
         ip_project_key=None,
@@ -73,7 +73,7 @@ def patch_openai_class(
             elif isinstance(ip_template, list):
                 ip_template_chat = ip_template
 
-        async with event_session(
+        with event_session(
             project_key=ip_project_key,
             api_key=ip_api_key,
             prompt_template_name=ip_prompt_template_name or prompt_template_name or ip_api_name,
@@ -86,7 +86,7 @@ def patch_openai_class(
             parent_event_id=ip_parent_event_id,
         ) as complete_event:
             response = oldcreate(*args, **kwargs)
-            await complete_event(get_result(response))
+            complete_event(get_result(response))
         return response
 
     oldacreate = cls.acreate
@@ -98,7 +98,7 @@ def patch_openai_class(
     setattr(
         cls,
         "create",
-        classmethod(lambda cls, *args, **kwds: asyncio.run(local_create(cls, *args, **kwds))),
+        classmethod(lambda cls, *args, **kwds: local_create(cls, *args, **kwds)),
     )
     setattr(
         cls,

@@ -1,3 +1,4 @@
+import threading
 import uuid
 from unittest.mock import ANY, MagicMock, patch
 
@@ -10,6 +11,9 @@ from im_openai.patch import patch_openai
 @pytest.fixture()
 def mock_send_event():
     with patch("im_openai.client.send_event", autospec=True) as mock:
+        mock.send_event_called = threading.Event()
+        mock.send_event_called.clear()
+        mock.side_effect = lambda *args, **kwargs: mock.send_event_called.set()
         yield mock
 
 
@@ -50,37 +54,14 @@ def test_chat_completion(mock_chat, mock_send_event: MagicMock, do_patch_openai)
         ip_event_id=event_id,
         ip_chat_id=chat_id,
     )
-
+    mock_send_event.send_event_called.wait(1)
     assert tuple(mock_send_event.call_args_list[0]) == (
-        (),
+        (ANY),  # session
         dict(
-            session=ANY,
-            api_key=api_key,
-            prompt_template_name=prompt_template_name,
-            project_key=None,
-            prompt_event_id=event_id,
-            prompt_template_text=None,
-            prompt_template_chat=[
-                {"role": "user", "content": "Send a greeting to our new user named {name}"}
-            ],
-            prompt_params=ip_template_params,
-            chat_id=chat_id,
-            parent_event_id=parent_event_id,
-            model_params={
-                "model": "gpt-3.5-turbo",
-                "modelProvider": "openai",
-                "modelType": "chat",
-                "temperature": 0.4,
-            },
-        ),
-    )
-    assert tuple(mock_send_event.call_args_list[1]) == (
-        (),
-        dict(
-            session=ANY,
             api_key=api_key,
             prompt_template_name="test-from-apitest-chat",
             project_key=None,
+            prompt=None,
             prompt_event_id=event_id,
             prompt_template_text=None,
             prompt_template_chat=[

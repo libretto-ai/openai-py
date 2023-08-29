@@ -1,5 +1,6 @@
 import asyncio
 import os
+import threading
 import uuid
 from typing import Any, Dict
 from unittest.mock import ANY, MagicMock, patch
@@ -47,6 +48,10 @@ def openai_api_key():
 @pytest.fixture()
 def mock_send_event():
     with patch("im_openai.client.send_event", autospec=True) as mock:
+        # This allows tests to be event-driven rather than calling time.sleep()
+        mock.send_event_called = threading.Event()
+        mock.send_event_called.clear()
+        mock.side_effect = lambda *args, **kwargs: mock.send_event_called.set()
         yield mock
 
 
@@ -74,23 +79,25 @@ def test_llm_start(pwc: langchain_callbacks.PromptWatchCallbacks, mock_send_even
         prompt=prompt,
     )
     run_llm_start(pwc, mock_send_event, run_id, parent_run_id, chain)
+    mock_send_event.send_event_called.wait(0.1)
+    mock_send_event.assert_not_called()
 
-    mock_send_event.assert_called_once_with(
-        ANY,
-        api_key=api_key,
-        prompt_template_name=prompt_template_name,
-        project_key=None,
-        prompt_template_text="What is a good name for a company that makes {product}?",
-        prompt_template_chat=None,
-        prompt_params={"product": "socks"},
-        prompt_event_id=None,
-        chat_id=None,
-        model_params={"modelType": "completion", "temperature": 0.5, "model": "text-davinci-003"},
-        response=None,
-        response_time=None,
-        prompt=None,
-        parent_event_id=str(parent_run_id),
-    )
+    # mock_send_event.assert_called_once_with(
+    #     ANY,
+    #     api_key=api_key,
+    #     prompt_template_name=prompt_template_name,
+    #     project_key=None,
+    #     prompt_template_text="What is a good name for a company that makes {product}?",
+    #     prompt_template_chat=None,
+    #     prompt_params={"product": "socks"},
+    #     prompt_event_id=None,
+    #     chat_id=None,
+    #     model_params={"modelType": "completion", "temperature": 0.5, "model": "text-davinci-003"},
+    #     response=None,
+    #     response_time=None,
+    #     prompt=None,
+    #     parent_event_id=str(parent_run_id),
+    # )
 
 
 def test_chat_model_start(
@@ -123,6 +130,8 @@ def test_chat_model_start(
         chain,
         template_args,
     )
+    pwc.on_llm_end(LLMResult(generations=[[Generation(text="hi")]]), run_id=run_id)
+    mock_send_event.send_event_called.wait(0.1)
 
     mock_send_event.assert_called_once_with(
         ANY,
@@ -140,8 +149,8 @@ def test_chat_model_start(
         prompt_params=template_args,
         prompt_event_id=None,
         chat_id=None,
-        response=None,
-        response_time=None,
+        response="hi",
+        response_time=ANY,
         prompt=None,
         model_params={"modelType": "chat", "temperature": 0.5, "model": "text-davinci-003"},
         parent_event_id=str(parent_run_id),
@@ -170,6 +179,14 @@ def test_chat_model_template_no_vars(
         chain,
         template_args,
     )
+    mock_send_event.assert_not_called()
+
+    pwc.on_llm_end(
+        LLMResult(generations=[[Generation(text="hi")]]),
+        run_id=run_id,
+        parent_run_id=parent_run_id,
+    )
+    mock_send_event.send_event_called.wait(0.1)
 
     mock_send_event.assert_called_once_with(
         ANY,
@@ -181,8 +198,8 @@ def test_chat_model_template_no_vars(
         prompt_params=template_args,
         prompt_event_id=None,
         chat_id=None,
-        response=None,
-        response_time=None,
+        response="hi",
+        response_time=ANY,
         # Comes in via the prompt rather than the prompt_template_chat/etc
         prompt={
             "chat": [
@@ -204,8 +221,6 @@ def test_chat_model_parent(
     mock_event_loop,
 ):
     new_event_id = uuid.uuid4()
-    # new_event_future_id = asyncio.futures.Future()
-    # new_event_future_id.set_result(new_event_id)
     mock_send_event.return_value = {"id": str(new_event_id)}
     run_id = uuid.uuid4()
     parent_run_id = uuid.uuid4()
@@ -232,6 +247,13 @@ def test_chat_model_parent(
         template_args,
     )
 
+    pwc.on_llm_end(
+        LLMResult(generations=[[Generation(text="hi")]]),
+        run_id=run_id,
+        parent_run_id=parent_run_id,
+    )
+    mock_send_event.send_event_called.wait(0.1)
+
     mock_send_event.assert_called_once_with(
         ANY,
         api_key=api_key,
@@ -246,35 +268,6 @@ def test_chat_model_parent(
         ],
         prompt_params=template_args,
         prompt_event_id=None,
-        chat_id=None,
-        response=None,
-        response_time=None,
-        model_params={"modelType": "chat", "temperature": 0.5, "model": "text-davinci-003"},
-        prompt=None,
-        parent_event_id=str(parent_run_id),
-    )
-    mock_send_event.reset_mock()
-
-    pwc.on_llm_end(
-        LLMResult(generations=[[Generation(text="hi")]]),
-        run_id=run_id,
-        parent_run_id=parent_run_id,
-    )
-
-    mock_send_event.assert_called_once_with(
-        ANY,
-        api_key=api_key,
-        prompt_template_name=prompt_template_name,
-        project_key=None,
-        prompt_template_text=None,
-        prompt_template_chat=[
-            {
-                "role": "system",
-                "content": "You are a helpful assistant that translates {input_language} to {output_language}.",
-            }
-        ],
-        prompt_params=template_args,
-        prompt_event_id=str(new_event_id),
         model_params={"modelType": "chat", "temperature": 0.5, "model": "text-davinci-003"},
         chat_id=None,
         response="hi",

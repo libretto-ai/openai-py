@@ -1,14 +1,14 @@
 """Utilities for sending events to Imaginary Dev."""
-import asyncio
 import logging
 import os
 import time
 import uuid
-import warnings
-from contextlib import asynccontextmanager
+from contextlib import contextmanager
 from typing import Any, Dict, List, TypedDict
 
 import aiohttp
+
+from .background import ensure_background_thread
 
 logger = logging.getLogger(__name__)
 
@@ -103,8 +103,8 @@ async def send_event(
     return json
 
 
-@asynccontextmanager
-async def event_session(
+@contextmanager
+def event_session(
     project_key: str | None,
     api_key: str | None,
     prompt_template_name: str | None,
@@ -116,12 +116,18 @@ async def event_session(
     prompt_event_id: str | None = None,
     parent_event_id: str | None = None,
 ):
-    """Context manager for sending an event to Imaginary Dev.
+    """Context manager for sending an event to Templatest
+
+    Note: the response time is measured from the moment the context manager is
+    entered, not from the moment the event is sent.
 
     Usage::
 
-        with event_session(project_key, prompt_template_name, prompt_text, prompt_event_id) as complete_event:
-            # do something
+        with event_session(
+            project_key=project_key,
+            prompt_template_name=prompt_template_name,
+            prompt_text=prompt_text) as complete_event:
+            response = call_llm_api()
             complete_event(response)
 
     """
@@ -129,10 +135,9 @@ async def event_session(
     if prompt_event_id is None:
         prompt_event_id = str(uuid.uuid4())
 
-    async with aiohttp.ClientSession() as session:
-        pending_events_sent = []
-        first_event_sent = send_event(
-            session=session,
+    def complete_event(response):
+        response_time = (time.time() - start) * 1000
+        send_event_background(
             project_key=project_key,
             api_key=api_key,
             prompt_template_name=prompt_template_name,
@@ -143,40 +148,45 @@ async def event_session(
             chat_id=chat_id,
             parent_event_id=parent_event_id,
             model_params=model_params,
+            response=response,
+            response_time=response_time,
         )
-        pending_events_sent.append(first_event_sent)
-        event_prompt_template_name = prompt_template_name
 
-        async def complete_event(response):
-            local_prompt_template_name = prompt_template_name
-            if not event_prompt_template_name:
-                first_event = await first_event_sent
-                if first_event:
-                    local_prompt_template_name = first_event["api_name"]
-            response_time = (time.time() - start) * 1000
-            second_event_sent = send_event(
-                session=session,
-                project_key=project_key,
-                api_key=api_key,
-                prompt_template_name=local_prompt_template_name,
-                prompt_event_id=prompt_event_id,
-                prompt_template_text=prompt_template_text,
-                prompt_template_chat=prompt_template_chat,
-                prompt_params=prompt_template_params,
-                chat_id=chat_id,
-                parent_event_id=parent_event_id,
-                model_params=model_params,
-                response=response,
-                response_time=response_time,
-            )
-            pending_events_sent.append(second_event_sent)
+    yield complete_event
 
-        yield complete_event
-        w = time.time()
-        pending_events_results = await asyncio.gather(*pending_events_sent, return_exceptions=True)
-        failed_events = [e for e in pending_events_results if isinstance(e, Exception)]
-        if failed_events:
-            warnings.warn(
-                f"Failed to report calls. {len(failed_events)} failure(s). First failure: {failed_events[0]}",
-                stacklevel=3,
-            )
+
+def send_event_background(
+    *,
+    api_key: str | None,
+    project_key: str | None = None,
+    prompt_template_name: str | None,
+    prompt_event_id: str | None = None,
+    prompt_template_text: str | None = None,
+    prompt_template_chat: List | None = None,
+    prompt_params: Dict | None = None,
+    chat_id: str | None = None,
+    response: str | None = None,
+    response_time: float | None = None,
+    prompt: Any | None = None,
+    parent_event_id: str | None = None,
+    model_params: Dict | None = None,
+):
+    """Send an event on a background thread"""
+
+    with ensure_background_thread() as call_in_background:
+        call_in_background(
+            send_event,
+            project_key=project_key,
+            api_key=api_key,
+            prompt_template_name=prompt_template_name,
+            prompt_event_id=prompt_event_id,
+            prompt_template_text=prompt_template_text,
+            prompt_template_chat=prompt_template_chat,
+            prompt_params=prompt_params,
+            chat_id=chat_id,
+            response=response,
+            response_time=response_time,
+            prompt=prompt,
+            parent_event_id=parent_event_id,
+            model_params=model_params,
+        )

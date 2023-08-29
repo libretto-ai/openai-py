@@ -26,7 +26,7 @@ logger.setLevel(logging.INFO)
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 with langchain_util.prompt_watch_tracing(
-    "f1ed34de-5069-48f9-a513-6095c45e3a30", prompt_template_name=os.path.basename(__file__)
+    api_key="f1ed34de-5069-48f9-a513-6095c45e3a30", prompt_template_name=os.path.basename(__file__)
 ):
     loader = TextLoader(os.path.join(os.path.dirname(__file__), "state_of_the_union.txt"))
 

@@ -36,7 +36,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 ip_prompt_template_name = os.path.basename(__file__)
 with langchain_util.prompt_watch_tracing(
-    "f1ed34de-5069-48f9-a513-6095c45e3a30",
+    api_key="f1ed34de-5069-48f9-a513-6095c45e3a30",
     prompt_template_name=ip_prompt_template_name,
     chat_id=str(uuid.uuid4()),
 ):
