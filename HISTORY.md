@@ -146,3 +146,7 @@
 
 -   Fixed api key propagaination in patched_openai
 -   Tried to account for more edge cases in background thread
+
+## 0.12.2
+
+-   Added naive support for streaming (will )

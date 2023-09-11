@@ -15,7 +15,7 @@ openai.Completion.create
 def patch_openai_class(
     cls,
     get_prompt_template: Callable,
-    get_result: Callable[..., Tuple[Any, str]],
+    get_result: Callable[..., Tuple[Iterable[Dict] | Dict, str]],
     prompt_template_name: Optional[str] = None,
     chat_id: Optional[str] = None,
     api_key: Optional[str] = None,
@@ -144,12 +144,12 @@ def list_extract(response):
     return response, response["choices"][0]["text"]
 
 
-def stream_extract(responses: Iterable[Dict]):
+def stream_extract(responses: Iterable[Dict]) -> Tuple[Iterable[Dict], str]:
     (original_response, consumable_response) = tee(responses)
-    accumulated = ""
+    accumulated = []
     for response in consumable_response:
-        accumulated += response["choices"][0]["text"]
-    return (original_response, accumulated)
+        accumulated.append(response["choices"][0]["text"])
+    return (original_response, "".join(accumulated))
 
 
 def get_completion_result(response, stream: bool):
@@ -159,13 +159,13 @@ def get_completion_result(response, stream: bool):
     return list_extract(response)
 
 
-def stream_extract_chat(responses: Iterable[Dict]):
+def stream_extract_chat(responses: Iterable[Dict]) -> Tuple[Iterable[Dict], str]:
     (original_response, consumable_response) = tee(responses)
-    accumulated = ""
+    accumulated = []
     for response in consumable_response:
         if "content" in response["choices"][0]["delta"]:
-            accumulated += response["choices"][0]["delta"]["content"]
-    return (original_response, accumulated)
+            accumulated.append(response["choices"][0]["delta"]["content"])
+    return (original_response, "".join(accumulated))
 
 
 def list_extract_chat(response):
