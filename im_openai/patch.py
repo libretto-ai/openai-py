@@ -15,6 +15,7 @@ def patch_openai_class(
     get_result: Callable,
     prompt_template_name: Optional[str] = None,
     chat_id: Optional[str] = None,
+    api_key: Optional[str] = None,
 ):
     oldcreate = cls.create
 
@@ -33,10 +34,17 @@ def patch_openai_class(
         ip_parent_event_id: str | None = None,
         **kwargs,
     ):
+        ip_prompt_template_name = (
+            ip_prompt_template_name
+            or prompt_template_name
+            or os.environ.get("PROMPT_TEMPLATE_NAME")
+            or ip_api_name  # legacy
+        )
+        ip_api_key = ip_api_key or api_key or os.environ.get("PROMPT_API_KEY")
+        ip_chat_id = ip_chat_id or chat_id or os.environ.get("PROMPT_CHAT_ID")
+
         if ip_project_key is None:
             ip_project_key = os.environ.get("PROMPT_PROJECT_KEY")
-        if ip_api_key is None:
-            ip_api_key = os.environ.get("PROMPT_API_KEY")
         if ip_project_key is None and ip_api_key is None:
             return oldcreate(*args, **kwargs)
 
@@ -76,11 +84,11 @@ def patch_openai_class(
         with event_session(
             project_key=ip_project_key,
             api_key=ip_api_key,
-            prompt_template_name=ip_prompt_template_name or prompt_template_name or ip_api_name,
+            prompt_template_name=ip_prompt_template_name,
             model_params=model_params,
             prompt_template_text=ip_template_text,
             prompt_template_chat=ip_template_chat,
-            chat_id=ip_chat_id or chat_id,
+            chat_id=ip_chat_id,
             prompt_template_params=ip_template_params,
             prompt_event_id=ip_event_id,
             parent_event_id=ip_parent_event_id,
@@ -126,7 +134,12 @@ def patch_openai(
         return prompt
 
     unpatch_completion = patch_openai_class(
-        openai.Completion, get_completion_prompt, lambda x: x["choices"][0]["text"]
+        openai.Completion,
+        get_completion_prompt,
+        lambda x: x["choices"][0]["text"],
+        api_key=api_key,
+        prompt_template_name=prompt_template_name,
+        chat_id=chat_id,
     )
 
     def get_chat_prompt(*args, messages=None, **kwargs):
@@ -138,6 +151,7 @@ def patch_openai(
         openai.ChatCompletion,
         get_chat_prompt,
         lambda x: x["choices"][0]["message"]["content"],
+        api_key=api_key,
         prompt_template_name=prompt_template_name,
         chat_id=chat_id,
     )
@@ -162,6 +176,8 @@ def patched_openai(
         # do stuff
     ```
     """
-    unpatch = patch_openai(prompt_template_name=prompt_template_name, chat_id=chat_id)
+    unpatch = patch_openai(
+        api_key=api_key, prompt_template_name=prompt_template_name, chat_id=chat_id
+    )
     yield
     unpatch()

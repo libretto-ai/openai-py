@@ -16,12 +16,13 @@ def thread_with_aiohttp(loop: asyncio.AbstractEventLoop, queue: asyncio.Queue):
     asyncio.set_event_loop(loop)
 
     # Can't use context manager because we are not async
-    session = aiohttp.ClientSession()
+    session = aiohttp.ClientSession(loop=loop)
 
     async def task_runner():
         while True:
             # Note: This await is what pumps the event loop and lets tasks run
             async_func, args, kwargs = await queue.get()
+            queue.task_done()
             if async_func is None:
                 # This is a signal to stop processing events
                 break
@@ -33,6 +34,8 @@ def thread_with_aiohttp(loop: asyncio.AbstractEventLoop, queue: asyncio.Queue):
     while tasks := asyncio.all_tasks(loop):
         for task in tasks:
             loop.run_until_complete(task)
+        # some tasks may enqueue other tasks, so we need to pump the event loop
+        loop.run_until_complete(asyncio.sleep(0))
 
     # Need to wait for a close since there might be network requests in flight
     loop.run_until_complete(session.close())
@@ -75,7 +78,8 @@ def ensure_background_thread():
             target=thread_with_aiohttp, args=(_send_event_loop, _send_event_queue)
         )
         _monitor_thread = threading.Thread(
-            target=run_monitor_thread, args=(_send_event_loop, _send_event_queue)
+            target=run_monitor_thread,
+            args=(_send_event_loop, _send_event_queue),
         )
         _monitor_thread.daemon = True
         _monitor_thread.start()
