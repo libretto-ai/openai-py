@@ -1,27 +1,43 @@
-import asyncio
 import os
 from contextlib import contextmanager
-from typing import Any, Callable, List, Optional, cast
+from copy import deepcopy
+from itertools import tee
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, cast
 
 import openai
 
 from .client import event_session
 from .template import TemplateChat, TemplateString
 
+openai.Completion.create
+
 
 def patch_openai_class(
     cls,
     get_prompt_template: Callable,
-    get_result: Callable,
+    get_result: Callable[..., Tuple[Any, str]],
     prompt_template_name: Optional[str] = None,
     chat_id: Optional[str] = None,
     api_key: Optional[str] = None,
 ):
+    """Patch an openai class to add logging capabilities.
+
+    Returns a function which may be called to "unpatch" the class.
+
+    Parameters
+    ----------
+    cls : type
+        The class to patch
+    get_prompt_template : Callable
+        A function which takes the same arguments as the class's create method,
+        and returns the prompt template to use.
+    """
     oldcreate = cls.create
 
     def local_create(
         cls,
         *args,
+        stream=None,
         ip_project_key=None,
         ip_api_key=None,
         ip_prompt_template_name: str | None = None,
@@ -46,10 +62,12 @@ def patch_openai_class(
         if ip_project_key is None:
             ip_project_key = os.environ.get("PROMPT_PROJECT_KEY")
         if ip_project_key is None and ip_api_key is None:
-            return oldcreate(*args, **kwargs)
+            return oldcreate(*args, **kwargs, stream=stream)
 
         model_params = kwargs.copy()
         model_params["modelProvider"] = "openai"
+        if stream is not None:
+            model_params["stream"] = stream
         if "messages" in kwargs:
             messages: List[Any] = kwargs["messages"]
             del model_params["messages"]
@@ -93,9 +111,10 @@ def patch_openai_class(
             prompt_event_id=ip_event_id,
             parent_event_id=ip_parent_event_id,
         ) as complete_event:
-            response = oldcreate(*args, **kwargs)
-            complete_event(get_result(response))
-        return response
+            response = oldcreate(*args, **kwargs, stream=stream)
+            (return_response, event_response) = get_result(response, stream)
+            complete_event(event_response)
+        return return_response
 
     oldacreate = cls.acreate
 
@@ -121,6 +140,44 @@ def patch_openai_class(
     return unpatch
 
 
+def list_extract(response):
+    return response, response["choices"][0]["text"]
+
+
+def stream_extract(responses: Iterable[Dict]):
+    (original_response, consumable_response) = tee(responses)
+    accumulated = ""
+    for response in consumable_response:
+        accumulated += response["choices"][0]["text"]
+    return (original_response, accumulated)
+
+
+def get_completion_result(response, stream: bool):
+    # No streaming support in non-chat yet
+    # if stream:
+    #     return stream_extract(response)
+    return list_extract(response)
+
+
+def stream_extract_chat(responses: Iterable[Dict]):
+    (original_response, consumable_response) = tee(responses)
+    accumulated = ""
+    for response in consumable_response:
+        if "content" in response["choices"][0]["delta"]:
+            accumulated += response["choices"][0]["delta"]["content"]
+    return (original_response, accumulated)
+
+
+def list_extract_chat(response):
+    return response, response["choices"][0]["message"]["content"]
+
+
+def get_chat_result(response, stream: bool):
+    if stream:
+        return stream_extract_chat(response)
+    return list_extract_chat(response)
+
+
 def patch_openai(
     api_key: Optional[str] = None,
     prompt_template_name: Optional[str] = None,
@@ -136,7 +193,7 @@ def patch_openai(
     unpatch_completion = patch_openai_class(
         openai.Completion,
         get_completion_prompt,
-        lambda x: x["choices"][0]["text"],
+        get_completion_result,
         api_key=api_key,
         prompt_template_name=prompt_template_name,
         chat_id=chat_id,
@@ -150,7 +207,7 @@ def patch_openai(
     unpatch_chat = patch_openai_class(
         openai.ChatCompletion,
         get_chat_prompt,
-        lambda x: x["choices"][0]["message"]["content"],
+        get_chat_result,
         api_key=api_key,
         prompt_template_name=prompt_template_name,
         chat_id=chat_id,
