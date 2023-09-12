@@ -123,7 +123,7 @@ def patch_openai_class(
 
     async def local_create_async(cls, *args, template=None, **kwargs):
         # TODO: record the request and response with the template
-        return oldacreate(*args, **kwargs)
+        return await oldacreate(*args, **kwargs)
 
     setattr(
         cls,
