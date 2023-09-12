@@ -19,6 +19,7 @@ def patch_openai_class(
     prompt_template_name: Optional[str] = None,
     chat_id: Optional[str] = None,
     api_key: Optional[str] = None,
+    only_named_prompts: bool = False,
 ):
     """Patch an openai class to add logging capabilities.
 
@@ -62,6 +63,8 @@ def patch_openai_class(
         if ip_project_key is None:
             ip_project_key = os.environ.get("PROMPT_PROJECT_KEY")
         if ip_project_key is None and ip_api_key is None:
+            return oldcreate(*args, **kwargs, stream=stream)
+        if only_named_prompts and ip_prompt_template_name is None:
             return oldcreate(*args, **kwargs, stream=stream)
 
         model_params = kwargs.copy()
@@ -182,6 +185,7 @@ def patch_openai(
     api_key: Optional[str] = None,
     prompt_template_name: Optional[str] = None,
     chat_id: Optional[str] = None,
+    only_named_prompts: bool = False,
 ):
     """Patch openai APIs to add logging capabilities.
 
@@ -197,6 +201,7 @@ def patch_openai(
         api_key=api_key,
         prompt_template_name=prompt_template_name,
         chat_id=chat_id,
+        only_named_prompts=only_named_prompts,
     )
 
     def get_chat_prompt(*args, messages=None, **kwargs):
@@ -211,6 +216,7 @@ def patch_openai(
         api_key=api_key,
         prompt_template_name=prompt_template_name,
         chat_id=chat_id,
+        only_named_prompts=only_named_prompts,
     )
 
     def unpatch():

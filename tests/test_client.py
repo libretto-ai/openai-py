@@ -24,6 +24,7 @@ async def test_send_event_chat(mock_env_get, mock_post, mock_env):
     mock_response = AsyncMock()
     mock_response.json.return_value = {"id": "test_event_id"}
     mock_post.return_value = mock_response
+    mock_post.return_value.status = 200
 
     # Creating a ClientSession object
     async with aiohttp.ClientSession() as session:
@@ -80,6 +81,7 @@ async def test_send_event_text(mock_env_get, mock_post, mock_env):
     mock_response = AsyncMock()
     mock_response.json.return_value = {"id": "test_event_id"}
     mock_post.return_value = mock_response
+    mock_post.return_value.status = 200
 
     # Creating a ClientSession object
     async with aiohttp.ClientSession() as session:

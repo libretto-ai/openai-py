@@ -99,7 +99,8 @@ async def send_event(
 
     result = await session.post(PROMPT_REPORTING_URL, json=event)
     json: SendEventResponse = await result.json()
-
+    if result.status > 299:
+        logger.debug(f"Event response: {result.status} for {prompt_template_name}: {json}")
     return json
 
 

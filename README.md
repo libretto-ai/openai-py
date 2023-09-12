@@ -190,6 +190,9 @@ Parameters:
     being used in a conversational context, then the same chat id can be
     provided so that the events are grouped together, in order. If not provided,
     this will be left blank.
+-   `only_named_prompts`: When passed to `patched_openai()` or `patch_openai()`,
+    this will only send events for prompts that have a name. This is useful if
+    you have a mix of prompts you want to track and prompts you don't want to track.
 
 OpenAI-only parameters:
 
