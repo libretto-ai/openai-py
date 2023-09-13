@@ -154,3 +154,5 @@
 ## 0.12.3
 
 -   Fixes for async (`acreate`)
+-   added new paramter, `only_named_prompts`, to `patched_openai` to allow for
+    only sending events for prompts that have a name
