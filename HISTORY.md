@@ -149,4 +149,8 @@
 
 ## 0.12.2
 
--   Added naive support for streaming (will )
+-   Added naive support for streaming (consumes entire stream during logging)
+
+## 0.12.3
+
+-   Fixes for async (`acreate`)
