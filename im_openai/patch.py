@@ -1,6 +1,7 @@
+import json
+import logging
 import os
 from contextlib import contextmanager
-from copy import deepcopy
 from itertools import tee
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, cast
 
@@ -9,7 +10,7 @@ import openai
 from .client import event_session
 from .template import TemplateChat, TemplateString
 
-openai.Completion.create
+logger = logging.getLogger(__name__)
 
 
 def patch_openai_class(
@@ -168,17 +169,27 @@ def stream_extract_chat(responses: Iterable[Dict]) -> Tuple[Iterable[Dict], str]
     for response in consumable_response:
         if "content" in response["choices"][0]["delta"]:
             accumulated.append(response["choices"][0]["delta"]["content"])
+        if "function_call" in response["choices"][0]["delta"]:
+            logger.warn("Streaming a function_call response is not supported yet.")
     return (original_response, "".join(accumulated))
 
 
 def list_extract_chat(response):
-    return response, response["choices"][0]["message"]["content"]
+    content = get_message_content(response["choices"][0]["message"])
+    return response, content
 
 
 def get_chat_result(response, stream: bool):
     if stream:
         return stream_extract_chat(response)
     return list_extract_chat(response)
+
+
+def get_message_content(message: Dict[str, Any]):
+    if message["content"]:
+        return message["content"]
+    if "function_call" in message:
+        return json.dumps({"function_call": message["function_call"]})
 
 
 def patch_openai(

@@ -156,3 +156,7 @@
 -   Fixes for async (`acreate`)
 -   added new paramter, `only_named_prompts`, to `patched_openai` to allow for
     only sending events for prompts that have a name
+
+## 0.12.4
+
+-   Send function_call responses as json
