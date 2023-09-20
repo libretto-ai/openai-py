@@ -160,3 +160,7 @@
 ## 0.12.4
 
 -   Send function_call responses as json
+
+## 0.13.0
+
+-   Automatically add `feedback_key` to all requests, and `ip_feedback_key` to responses
