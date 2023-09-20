@@ -13,6 +13,13 @@ from .background import ensure_background_thread
 logger = logging.getLogger(__name__)
 
 
+def get_url(api_name: str, environment_name: str) -> str:
+    if os.environ.get(environment_name):
+        return os.environ[environment_name]
+    prefix = os.environ.get("PROMPT_API_PREFIX", "https://app.imaginary.dev/api")
+    return f"{prefix}/{api_name}"
+
+
 class SendEventResponse(TypedDict):
     id: str
     """The id of the event that was added on the server."""
@@ -36,11 +43,10 @@ async def send_event(
     prompt: Any | None = None,
     parent_event_id: str | None = None,
     model_params: Dict | None = None,
+    feedback_key: str | None = None,
 ) -> SendEventResponse | None:
     """Send an event to Imaginary Dev. Returns the id of the event that was added on the server."""
-    PROMPT_REPORTING_URL = os.environ.get(
-        "PROMPT_REPORTING_URL", "https://app.imaginary.dev/api/event"
-    )
+    PROMPT_REPORTING_URL = get_url("event", "PROMPT_REPORTING_URL")
     event = {
         "apiName": prompt_template_name,
         "params": {},
@@ -54,6 +60,9 @@ async def send_event(
         event["projectKey"] = project_key
     if api_key is not None:
         event["apiKey"] = api_key
+
+    if feedback_key:
+        event["feedbackKey"] = feedback_key
 
     if not api_key and not project_key:
         logger.warning("No project key or api key set, not sending event")
@@ -116,6 +125,7 @@ def event_session(
     prompt_template_params: dict | None = None,
     prompt_event_id: str | None = None,
     parent_event_id: str | None = None,
+    feedback_key: str | None = None,
 ):
     """Context manager for sending an event to Templatest
 
@@ -151,6 +161,7 @@ def event_session(
             model_params=model_params,
             response=response,
             response_time=response_time,
+            feedback_key=feedback_key,
         )
 
     yield complete_event
@@ -171,6 +182,7 @@ def send_event_background(
     prompt: Any | None = None,
     parent_event_id: str | None = None,
     model_params: Dict | None = None,
+    feedback_key: str | None = None,
 ):
     """Send an event on a background thread"""
 
@@ -190,4 +202,27 @@ def send_event_background(
             prompt=prompt,
             parent_event_id=parent_event_id,
             model_params=model_params,
+            feedback_key=feedback_key,
         )
+
+
+async def send_feedback(
+    session: aiohttp.ClientSession,
+    *,
+    feedback_key: str,
+    api_key: str,
+    better_answer: str | None = None,
+    rating: float | None = None,
+):
+    PROMPT_FEEDBACK_URL = get_url("feedback", "PROMPT_FEEDBACK_URL")
+    feedback_call = {
+        "feedbackKey": feedback_key,
+        "apiKey": api_key,
+        "rating": rating,
+        "betterAnswer": better_answer,
+    }
+    result = await session.post(PROMPT_FEEDBACK_URL, json=feedback_call)
+    json: SendEventResponse = await result.json()
+    if result.status > 299:
+        logger.debug(f"Feedback response: {result.status} for {feedback_key}: {json}")
+    return json

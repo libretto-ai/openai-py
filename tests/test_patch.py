@@ -75,8 +75,10 @@ def test_chat_completion(mock_chat, mock_send_event: MagicMock, do_patch_openai)
                 "modelProvider": "openai",
                 "modelType": "chat",
                 "temperature": 0.4,
+                "stream": False,
             },
             response=ANY,
             response_time=ANY,
+            feedback_key=ANY,
         ),
     )

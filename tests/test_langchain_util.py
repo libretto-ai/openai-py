@@ -154,6 +154,7 @@ def test_chat_model_start(
         prompt=None,
         model_params={"modelType": "chat", "temperature": 0.5, "model": "text-davinci-003"},
         parent_event_id=str(parent_run_id),
+        feedback_key=ANY,
     )
 
 
@@ -212,6 +213,7 @@ def test_chat_model_template_no_vars(
         },
         model_params={"modelType": "chat", "temperature": 0.5, "model": "text-davinci-003"},
         parent_event_id=str(parent_run_id),
+        feedback_key=ANY,
     )
 
 
@@ -274,6 +276,7 @@ def test_chat_model_parent(
         response_time=ANY,
         prompt=None,
         parent_event_id=str(parent_run_id),
+        feedback_key=ANY,
     )
 
 

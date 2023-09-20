@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import uuid
 from contextlib import contextmanager
 from itertools import tee
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, cast
@@ -16,7 +17,10 @@ logger = logging.getLogger(__name__)
 def patch_openai_class(
     cls,
     get_prompt_template: Callable,
-    get_result: Callable[..., Tuple[Iterable[Dict] | Dict, str]],
+    get_result: Callable[
+        [Dict[str, Any] | Iterable[Dict[str, Any]], bool],
+        Tuple[Dict[str, Any] | Iterable[Dict[str, Any]], Optional[str]],
+    ],
     prompt_template_name: Optional[str] = None,
     chat_id: Optional[str] = None,
     api_key: Optional[str] = None,
@@ -39,7 +43,7 @@ def patch_openai_class(
     def local_create(
         cls,
         *args,
-        stream=None,
+        stream: bool = False,
         ip_project_key=None,
         ip_api_key=None,
         ip_prompt_template_name: str | None = None,
@@ -50,6 +54,7 @@ def patch_openai_class(
         ip_template_params=None,
         ip_chat_id: str | None = None,
         ip_parent_event_id: str | None = None,
+        ip_feedback_key: str | None = None,
         **kwargs,
     ):
         ip_prompt_template_name = (
@@ -67,6 +72,8 @@ def patch_openai_class(
             return oldcreate(*args, **kwargs, stream=stream)
         if only_named_prompts and ip_prompt_template_name is None:
             return oldcreate(*args, **kwargs, stream=stream)
+
+        feedback_key = ip_feedback_key or str(uuid.uuid4())
 
         model_params = kwargs.copy()
         model_params["modelProvider"] = "openai"
@@ -114,10 +121,15 @@ def patch_openai_class(
             prompt_template_params=ip_template_params,
             prompt_event_id=ip_event_id,
             parent_event_id=ip_parent_event_id,
+            feedback_key=feedback_key,
         ) as complete_event:
             response = oldcreate(*args, **kwargs, stream=stream)
             (return_response, event_response) = get_result(response, stream)
+            # Can only do this for non-streamed responses right now
+            if isinstance(return_response, dict):
+                return_response["ip_feedback_key"] = feedback_key  # type: ignore
             complete_event(event_response)
+
         return return_response
 
     oldacreate = cls.acreate
@@ -144,7 +156,7 @@ def patch_openai_class(
     return unpatch
 
 
-def list_extract(response):
+def list_extract(response: Dict[str, Any]):
     return response, response["choices"][0]["text"]
 
 
@@ -156,14 +168,18 @@ def stream_extract(responses: Iterable[Dict]) -> Tuple[Iterable[Dict], str]:
     return (original_response, "".join(accumulated))
 
 
-def get_completion_result(response, stream: bool):
+def get_completion_result(response: Dict[str, Any] | Iterable[Dict[str, Any]], stream: bool):
     # No streaming support in non-chat yet
     # if stream:
     #     return stream_extract(response)
-    return list_extract(response)
+    if not isinstance(response, dict):
+        raise ValueError("Streaming is not supported for single responses")
+    return list_extract(cast(dict, response))
 
 
-def stream_extract_chat(responses: Iterable[Dict]) -> Tuple[Iterable[Dict], str]:
+def stream_extract_chat(
+    responses: Iterable[Dict[str, Any]]
+) -> Tuple[Iterable[Dict[str, Any]], str]:
     (original_response, consumable_response) = tee(responses)
     accumulated = []
     for response in consumable_response:
@@ -179,8 +195,10 @@ def list_extract_chat(response):
     return response, content
 
 
-def get_chat_result(response, stream: bool):
+def get_chat_result(response: Iterable[Dict[str, Any]] | Dict[str, Any], stream: bool):
     if stream:
+        if isinstance(response, dict):
+            raise ValueError("Streaming is not supported for single responses")
         return stream_extract_chat(response)
     return list_extract_chat(response)
 
