@@ -274,6 +274,53 @@ These parameters can only be passed to the `create()` methods of the patched Ope
         ip_parent_event_id=parent_id)
     ```
 
+## Sending Feedback
+
+Sometimes the answer provided by the LLM is not ideal, and your users may be
+able to help you find better responses. There are a few common cases:
+
+-   You might use the LLM to suggest the title of a news article, but let the
+    user edit it. If they change the title, you can send feedback to Templatest
+    that the answer was not ideal.
+-   You might provide a chatbot that answers questions, and the user can rate the  
+    answers with a thumbs up (good) or thumbs down (bad).
+
+You can send this feedback to Tepmlatest by calling `send_feedback()`. This will
+send a feedback event to Templatest about a prompt that was previously called, and
+let you review this feedback in the Templatest dashboard. You can use this
+feedback to develop new tests and improve your prompts.
+
+```python
+from im_openai import patch_openai, client
+patch_openai()
+
+completion = openai.ChatCompletion.create(
+    ...)
+
+
+# Maybe the user didn't like the answer, so ask them for a better one.
+better_response = askUserForBetterResult(completion["choices"][0]["text"])
+
+# If the user provided a better answer, send feedback to Templatest
+if better_response !== completion["choices"][0]["text"]:
+# feedback key is automatically injected into OpenAI response object.
+feedback_key = completion.ip_feedback_key
+client.send_feedback(
+    api_key=api_key,
+    feedback_key=feedback_key,
+    # Better answer from the user
+    better_response=better_response,
+    # Rating of existing answer, from 0 to 1
+    rating=0.2)
+```
+
+Note that feedback can include either `rating`, `better_response`, or both.
+
+Parameters:
+
+-   `rating` - a value from 0 (meaning the result was completely wrong) to 1 (meaning the result was correct)
+-   `better_response` - the better response from the user
+
 ## Credits
 
 This package was created with Cookiecutter* and the `audreyr/cookiecutter-pypackage`* project template.

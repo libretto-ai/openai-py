@@ -164,3 +164,7 @@
 ## 0.13.0
 
 -   Automatically add `feedback_key` to all requests, and `ip_feedback_key` to responses
+
+## 0.13.1
+
+-   Updated docs for `send_feedback()`
