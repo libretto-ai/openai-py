@@ -9,7 +9,7 @@ profile = "black"
 
 [tool.poetry]
 name = "im-openai"
-version = "0.13.1"
+version = "0.13.2"
 description = "Wrapper library for openai to send events to the Imaginary Programming monitor"
 authors = ["Alec Flett <alecf@thegp.com>"]
 license = "MIT"

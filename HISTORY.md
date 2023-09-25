@@ -168,3 +168,7 @@
 ## 0.13.1
 
 -   Updated docs for `send_feedback()`
+
+## 0.13.2
+
+-   Expose `send_feedback_background`
