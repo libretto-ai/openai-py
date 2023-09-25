@@ -206,6 +206,24 @@ def send_event_background(
         )
 
 
+def send_feedback_background(
+    *,
+    feedback_key: str,
+    api_key: str,
+    better_answer: str | None = None,
+    rating: float | None = None,
+):
+    """Send feedback on a background thread"""
+    with ensure_background_thread() as call_in_background:
+        call_in_background(
+            send_feedback,
+            feedback_key=feedback_key,
+            api_key=api_key,
+            better_answer=better_answer,
+            rating=rating,
+        )
+
+
 async def send_feedback(
     session: aiohttp.ClientSession,
     *,
