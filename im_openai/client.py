@@ -210,7 +210,7 @@ def send_feedback_background(
     *,
     feedback_key: str,
     api_key: str,
-    better_answer: str | None = None,
+    better_response: str | None = None,
     rating: float | None = None,
 ):
     """Send feedback on a background thread"""
@@ -219,7 +219,7 @@ def send_feedback_background(
             send_feedback,
             feedback_key=feedback_key,
             api_key=api_key,
-            better_answer=better_answer,
+            better_response=better_response,
             rating=rating,
         )
 
@@ -229,15 +229,15 @@ async def send_feedback(
     *,
     feedback_key: str,
     api_key: str,
-    better_answer: str | None = None,
+    better_response: str | None = None,
     rating: float | None = None,
 ):
     PROMPT_FEEDBACK_URL = get_url("feedback", "PROMPT_FEEDBACK_URL")
     feedback_call = {
-        "feedbackKey": feedback_key,
+        "feedback_key": feedback_key,
         "apiKey": api_key,
         "rating": rating,
-        "betterAnswer": better_answer,
+        "better_response": better_response,
     }
     result = await session.post(PROMPT_FEEDBACK_URL, json=feedback_call)
     json: SendEventResponse = await result.json()
