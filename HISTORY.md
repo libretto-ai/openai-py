@@ -172,3 +172,7 @@
 ## 0.13.2
 
 -   Expose `send_feedback_background`
+
+## 0.13.3
+
+-   Fix passing of `feedback_key`
