@@ -148,7 +148,7 @@ class FakeInternalMessage(BaseMessage):
 
     @property
     def type(self) -> str:
-        return "foo"
+        return "placeholder"
 
 
 def make_stub_inputs(inputs: Dict[str, Any]) -> Dict[str, Any]:
@@ -179,6 +179,7 @@ def make_stub_inputs_raw(inputs: Dict[str, Any] | List[Any], prefix: str):
         return FakeInternalMessage(
             role=f"{{{prefix}.role}}",
             content=f"{{{prefix}.content}}",
+            type="placeholder",
         )
     if isinstance(inputs, AgentAction):
         return AgentAction(
