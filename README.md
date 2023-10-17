@@ -7,18 +7,18 @@ monitor
 
 ## Features
 
--   Patches the openai library to allow user to set an ip_api_key and ip_prompt_template_name
+- Patches the openai library to allow user to set an ip_api_key and ip_prompt_template_name
     for each request
--   Works out of the box with langchain
+- Works out of the box with langchain
 
 ## Get Started
 
 To send events to Imaginary Programming, you'll need to create a project. From the project you'll need two things:
 
 1. **API key**: (`api_key`) This is generated for the project and is used to identify the project and environment (dev, staging, prod) that the event is coming from.
-2. **Template Name**: (`prompt_template_name`) This uniquely identifies a particular prompt that you are using. This allows projects to have multiple prompts. You do not need to generate this in advance: if the Template Name does not exist, then it will be created automatically. This can be in any format but we recommend using a dash-separated format, e.g. `my-prompt-name`.
+2. **Template Name**: (`prompt_template_name`) This uniquely identifies a particular prompt that you are using and allows projects to have multiple prompts. This can be in any format but we recommend using a dash-separated format, e.g. `my-prompt-name`.
 
-**Note:** if you don't pass in an Template Name, new revisions of the same prompt will show up as different prompt templates in Templatest.
+**Note:** Prompt template names can be auto-generated if the `allow_unnamed_prompts` configuration option is set (see [below](#configuration)). However, if you rely on auto-generated names, new revisions of the same prompt will show up as different prompt templates in Templatest.
 
 ### OpenAI
 
@@ -149,7 +149,7 @@ Be nice and enthusiastic but not overwhelming.
     llm.run(user="Bob")
 ```
 
-#### Advanced usage
+### Advanced usage
 
 You can patch directly:
 
@@ -176,21 +176,33 @@ llm.run(user="Bob")
 disable_prompt_watch_tracing(old_tracer)
 ```
 
+### Configuration
+
+The following options may be passed as kwargs when patching:
+
+- `prompt_template_name`: A default name to associate with prompts. If provided,
+  this is the name that will be associated with any `create` call that's made
+  **without** an `ip_prompt_template_name` parameter.
+- `allow_unnamed_prompts`: When set to `True`, every prompt will be sent to
+  Templatest even if no prompt template name as been provided (either via the
+  `prompt_template_name` kwarg or via the `ip_prompt_template_name` parameter on
+  `create`).
+
 ### Additional Parameters
 
 The following parameters are available in both the patched OpenAI client and the Langchain wrapper.
 
--   For OpenAI, pass these to the `create()` methods.
--   For Langchain, pass these to the `prompt_watch_tracing()` context manager or
+- For OpenAI, pass these to the `create()` methods.
+- For Langchain, pass these to the `prompt_watch_tracing()` context manager or
     the `enable_prompt_watch_tracing()` function.
 
 Parameters:
 
--   `chat_id` / `ip_chat_id`: The id of a "chat session" - if the chat API is
+- `chat_id` / `ip_chat_id`: The id of a "chat session" - if the chat API is
     being used in a conversational context, then the same chat id can be
     provided so that the events are grouped together, in order. If not provided,
     this will be left blank.
--   `only_named_prompts`: When passed to `patched_openai()` or `patch_openai()`,
+- `only_named_prompts`: When passed to `patched_openai()` or `patch_openai()`,
     this will only send events for prompts that have a name. This is useful if
     you have a mix of prompts you want to track and prompts you don't want to track.
 
@@ -198,91 +210,85 @@ OpenAI-only parameters:
 
 These parameters can only be passed to the `create()` methods of the patched OpenAI client.
 
--   `ip_template_chat`: The chat _template_ to record for chat
-    requests. This is a list of dictionaries with the following keys:
+- `ip_template_chat`: The chat _template_ to record for chat requests. This is a list of dictionaries with the following keys:
 
-    -   `role`: The role of the speaker. Either `"system"`, `"user"` or `"ai"`.
-    -   `content`: The content of the message. This can be a string or a template string with `{}` placeholders.
+  - `role`: The role of the speaker. Either `"system"`, `"user"` or `"ai"`.
+  - `content`: The content of the message. This can be a string or a template string with `{}` placeholders.
 
-    For example:
+  For example:
 
-    ```python
-    completion = openai.ChatCompletion.create(
-        ...,
-        ip_template_chat=[
-            {"role": "ai", "content": "Hello, I'm {system_name}!"},
-            {"role": "user", "content": "Hi {system_name}, I'm {user_name}!"}
-        ])
-    ```
+  ```python
+  completion = openai.ChatCompletion.create(
+      ...,
+      ip_template_chat=[
+          {"role": "ai", "content": "Hello, I'm {system_name}!"},
+          {"role": "user", "content": "Hi {system_name}, I'm {user_name}!"}
+      ])
+  ```
 
-    To represent an array of chat messages, use the artificial role `"chat_history"` with `content` set to the variable name in substitution format: `[{"role": "chat_history", "content": "{prev_messages}"}}]`
+  To represent an array of chat messages, use the artificial role `"chat_history"` with `content` set to the variable name in substitution format: `[{"role": "chat_history", "content": "{prev_messages}"}}]`
 
--   `ip_template_text`: The text template to record for
-    completion requests. This is a string or a template string with `{}`
-    placeholders,
+- `ip_template_text`: The text template to record for completion requests. This is a string or a template string with `{}` placeholders.
 
-    For example:
+  For example:
 
-    ```python
-    completion = openai.Completion.create(
-        ...,
-        ip_template_text="Please welcome the user to {system_name}!")
-    ```
+  ```python
+  completion = openai.Completion.create(
+      ...,
+      ip_template_text="Please welcome the user to {system_name}!")
+  ```
 
--   `ip_template_params`: The parameters to use for template
-    strings. This is a dictionary of key-value pairs.
+- `ip_template_params`: The parameters to use for template strings. This is a dictionary of key-value pairs.
 
-    For example:
+  For example:
 
-    ```python
-    completion = openai.Completion.create(
-        ...,
-        ip_template_text="Please welcome the user to {system_name}!"),
-        ip_template_params={"system_name": "Awesome Comics Incorporated"})
-    ```
+  ```python
+  completion = openai.Completion.create(
+      ...,
+      ip_template_text="Please welcome the user to {system_name}!"),
+      ip_template_params={"system_name": "Awesome Comics Incorporated"})
+  ```
 
--   `ip_event_id`: A unique UUID for a specific call. If not provided,
-    one will be generated. **Note**: In the langchain wrapper, this value is inferred from the chain `run_id`.
+- `ip_event_id`: A unique UUID for a specific call. If not provided, one will be generated. **Note**: In the langchain wrapper, this value is inferred from the chain `run_id`.
 
-    For example:
+  For example:
 
-    ```python
-    import uuid
+  ```python
+  import uuid
 
-    completion = openai.Completion.create(
-        ...,
-        ip_event_id=uuid.uuid4())
-    ```
+  completion = openai.Completion.create(
+      ...,
+      ip_event_id=uuid.uuid4())
+  ```
 
--   `ip_parent_event_id`: The UUID of the parent event. All calls with the same
-    parent id are grouped as a "Run Group". **Note**: In the langchain wrapper, this value is inferred from the chain `parent_run_id`.
+- `ip_parent_event_id`: The UUID of the parent event. All calls with the same parent id are grouped as a "Run Group". **Note**: In the langchain wrapper, this value is inferred from the chain `parent_run_id`.
 
-    For example:
+  For example:
 
-    ```python
-    import uuid
+  ```python
+  import uuid
 
-    parent_id = uuid.uuid4()
-    # First call in the run group
-    completion = openai.Completion.create(
-        ...,
-        ip_parent_event_id=parent_id)
+  parent_id = uuid.uuid4()
+  # First call in the run group
+  completion = openai.Completion.create(
+      ...,
+      ip_parent_event_id=parent_id)
 
-    # Another call in the same group
-    completion = openai.Completion.create(
-        ...,
-        ip_parent_event_id=parent_id)
-    ```
+  # Another call in the same group
+  completion = openai.Completion.create(
+      ...,
+      ip_parent_event_id=parent_id)
+  ```
 
 ## Sending Feedback
 
 Sometimes the answer provided by the LLM is not ideal, and your users may be
 able to help you find better responses. There are a few common cases:
 
--   You might use the LLM to suggest the title of a news article, but let the
+- You might use the LLM to suggest the title of a news article, but let the
     user edit it. If they change the title, you can send feedback to Templatest
     that the answer was not ideal.
--   You might provide a chatbot that answers questions, and the user can rate the  
+- You might provide a chatbot that answers questions, and the user can rate the
     answers with a thumbs up (good) or thumbs down (bad).
 
 You can send this feedback to Tepmlatest by calling `send_feedback()`. This will
@@ -318,12 +324,12 @@ Note that feedback can include either `rating`, `better_response`, or both.
 
 Parameters:
 
--   `rating` - a value from 0 (meaning the result was completely wrong) to 1 (meaning the result was correct)
--   `better_response` - the better response from the user
+- `rating` - a value from 0 (meaning the result was completely wrong) to 1 (meaning the result was correct)
+- `better_response` - the better response from the user
 
 ## Credits
 
-This package was created with Cookiecutter* and the `audreyr/cookiecutter-pypackage`* project template.
+This package was created with Cookiecutter and the `audreyr/cookiecutter-pypackage` project template.
 
-.. _Cookiecutter: https://github.com/audreyr/cookiecutter
-.. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
+- Cookiecutter: <https://github.com/audreyr/cookiecutter>
+- `audreyr/cookiecutter-pypackage`: <https://github.com/audreyr/cookiecutter-pypackage>
