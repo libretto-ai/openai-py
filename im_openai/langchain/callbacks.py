@@ -457,7 +457,9 @@ class PromptWatchCallbacks(BaseCallbackHandler):
                     else None
                 )
                 prompt_template_text = None
-                prompt_template_chat = template
+                prompt_template_chat = (
+                    util.format_chat_template(template) if template else None  # type: ignore
+                )
             else:
                 model_params["modelType"] = "completion"
                 prompt = {"completion": iteration} if not template else None
