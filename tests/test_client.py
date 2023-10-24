@@ -1,4 +1,3 @@
-import asyncio
 import os
 from unittest.mock import AsyncMock, patch
 
@@ -9,14 +8,14 @@ from im_openai.client import send_event
 
 
 @pytest.fixture
-def mock_env(monkeypatch):
+def _mock_env(monkeypatch):
     monkeypatch.setitem(os.environ, "PROMPT_REPORTING_URL", "https://app.imaginary.dev/api/event")
 
 
 @pytest.mark.asyncio
 @patch("aiohttp.ClientSession.post", new_callable=AsyncMock)
 @patch("os.environ.get")
-async def test_send_event_chat(mock_env_get, mock_post, mock_env):
+async def test_send_event_chat(mock_env_get, mock_post, _mock_env):
     # Mocking the environment variable for URL
     mock_env_get.return_value = "https://app.imaginary.dev/api/event"
 
@@ -73,7 +72,7 @@ async def test_send_event_chat(mock_env_get, mock_post, mock_env):
 @pytest.mark.asyncio
 @patch("aiohttp.ClientSession.post", new_callable=AsyncMock)
 @patch("os.environ.get")
-async def test_send_event_text(mock_env_get, mock_post, mock_env):
+async def test_send_event_text(mock_env_get, mock_post, _mock_env):
     # Mocking the environment variable for URL
     mock_env_get.return_value = "https://app.imaginary.dev/api/event"
 

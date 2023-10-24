@@ -1,18 +1,17 @@
-import asyncio
-import json
+from functools import wraps
 import logging
 import os
 import time
 import uuid
 from contextlib import contextmanager
 from itertools import zip_longest
-from typing import Any, Dict, List, Optional, TypedDict, Union, _SpecialForm, cast
+from typing import Any, Dict, List, Optional, TypedDict, Union, cast
 from uuid import UUID
 
-import aiohttp
 from langchain.callbacks.base import BaseCallbackHandler
 from langchain.callbacks.manager import tracing_v2_callback_var
 from langchain.load.load import load
+from langchain.load.serializable import SerializedConstructor
 from langchain.prompts import BasePromptTemplate
 from langchain.prompts.chat import BaseMessagePromptTemplate
 from langchain.schema import AgentAction, AgentFinish, BaseMessage, LLMResult
@@ -22,8 +21,6 @@ from im_openai import client
 from . import util
 
 logger = logging.getLogger(__name__)
-
-from functools import wraps
 
 
 class RunInfo(TypedDict, total=False):
@@ -49,14 +46,14 @@ def record_run_info(run_type: str):
                 run_id = kwargs["run_id"]
                 prev_type = self.run_types.get(run_id, None)
                 if prev_type is not None and prev_type != run_type:
-                    logger.warning(f"converting run {run_id} from {prev_type} to {run_type}")
+                    logger.warning("converting run %s from %s to %s", run_id, prev_type, run_type)
                 self.run_types[kwargs["run_id"]] = run_type
                 if "parent_run_id" in kwargs:
                     parent_run_id = kwargs["parent_run_id"]
                     if parent_run_id:
                         self.parent_run_ids[run_id] = parent_run_id
                     elif run_type != "chain":
-                        logger.warning(f"WARNING: parent_run_id is None for {run_type} {run_id}")
+                        logger.warning("WARNING: parent_run_id is None for %s %s", run_type, run_id)
 
             return func(self, *args, **kwargs)
 
@@ -188,9 +185,10 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             self.runs[run_id]["prompt_template"] = prompt_template
 
             # User might have overridden the prompt_template_name
-            prompt_template_name: str | None = prompt_template._lc_kwargs.get(
-                "additional_kwargs", {}
-            ).get("ip_prompt_template_name")
+            lc_kwargs = cast(SerializedConstructor, prompt_template.to_json())["kwargs"]
+            prompt_template_name: str | None = lc_kwargs.get("additional_kwargs", {}).get(
+                "ip_prompt_template_name"
+            )
             self.runs[run_id]["api_name"] = prompt_template_name
         elif prompt_template is None:
             logger.warning("Missing prompt template for chain %s", ".".join(serialized["id"]))
@@ -226,12 +224,12 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         parent_run_id: Optional[UUID] = None,
         **kwargs: Any,
     ) -> Any:
+        """Run on agent action."""
         logger.info(
             "on_agent_action     %s %s",
             self._format_run_id(run_id),
             action.tool,
         )
-        """Run on agent action."""
 
     @record_run_info("chain")
     def on_agent_finish(
@@ -315,6 +313,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         self,
         serialized,
         messages: List[List[BaseMessage]],
+        *,
         run_id,
         parent_run_id,
         tags,
@@ -343,7 +342,6 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         *,
         run_id: UUID,
         parent_run_id: Optional[UUID] = None,
-        tags: Optional[List[str]] = None,
         **kwargs: Any,
     ):
         """Runs when either a text-based or chat-based LLM ends"""
@@ -414,7 +412,6 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         *,
         run_id: UUID,
         parent_run_id: Optional[UUID] = None,
-        tags: Optional[List[str]] = None,
         **kwargs: Any,
     ):
         logger.info(
@@ -468,7 +465,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
 
             # TODO: gather these up and send them all at once
             prompt_event_id = self._get_server_event_id(run_id)
-            response = client.send_event_background(
+            client.send_event_background(
                 project_key=self.project_key,
                 api_key=self.api_key,
                 prompt_template_name=prompt_template_name or self.prompt_template_name,
@@ -483,8 +480,6 @@ class PromptWatchCallbacks(BaseCallbackHandler):
                 prompt=prompt,
                 parent_event_id=str(parent_event_id) if parent_event_id else None,
             )
-            if response:
-                self.server_event_ids[run_id] = response
 
     def _send_chat(
         self,

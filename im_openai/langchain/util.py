@@ -3,20 +3,14 @@
 import dataclasses
 import logging
 import re
-from contextlib import asynccontextmanager, contextmanager
-from typing import Any, Dict, List, Union, cast
+from typing import Any, Dict, List, Union
 
-from langchain.callbacks.manager import tracing_v2_callback_var
 from langchain.prompts import (
-    AIMessagePromptTemplate,
-    BaseChatPromptTemplate,
     BasePromptTemplate,
     ChatMessagePromptTemplate,
     ChatPromptTemplate,
-    HumanMessagePromptTemplate,
     PromptTemplate,
     StringPromptTemplate,
-    SystemMessagePromptTemplate,
 )
 from langchain.prompts.chat import (
     BaseChatPromptTemplate,
@@ -109,38 +103,37 @@ def _convert_message_to_dicts(
 ) -> List[dict]:
     if isinstance(message, ChatMessage):
         return [{"role": message.role, "content": message.content}]
-    elif isinstance(message, HumanMessage):
+    if isinstance(message, HumanMessage):
         return [{"role": "user", "content": message.content}]
-    elif isinstance(message, AIMessage):
+    if isinstance(message, AIMessage):
         formatted_messages = {"role": "assistant", "content": message.content}
         if "function_call" in message.additional_kwargs:
             formatted_messages["function_call"] = message.additional_kwargs["function_call"]
         return [formatted_messages]
-    elif isinstance(message, SystemMessage):
+    if isinstance(message, SystemMessage):
         return [{"role": "system", "content": message.content}]
-    elif isinstance(message, MessagesPlaceholder):
+    if isinstance(message, MessagesPlaceholder):
         formatted_messages = {
             "role": "chat_history",
             "content": f"{{{message.variable_name}}}",
         }
         return [formatted_messages]
-    elif isinstance(message, (BaseMessagePromptTemplate, BaseChatPromptTemplate)):
-        vars = message.input_variables
+    if isinstance(message, (BaseMessagePromptTemplate, BaseChatPromptTemplate)):
+        input_vars = message.input_variables
         # create a fake dictionary mapping name -> '{name}'
-        vars_as_templates = {v: f"{{{v}}}" for v in vars}
+        vars_as_templates = {v: f"{{{v}}}" for v in input_vars}
         formatted_messages = message.format_messages(**vars_as_templates)
         return format_chat_template(formatted_messages)  # type: ignore
-    elif isinstance(message, FakeInternalMessage):
+    if isinstance(message, FakeInternalMessage):
         return [
             {
                 "role": message.role,
                 "content": message.content,
             }
         ]
-    elif isinstance(message, dict):
+    if isinstance(message, dict):
         return [message]
-    else:
-        raise ValueError(f"Got unknown type {type(message)}: {message}")
+    raise ValueError(f"Got unknown type {type(message)}: {message}")
 
 
 class FakeInternalMessage(BaseMessage):
@@ -247,7 +240,7 @@ def format_chat_template_with_stub_inputs(
         ]
         # Flatten sub_messages
         return [item for sublist in sub_messages for item in sublist]
-    elif isinstance(template, PromptTemplate):
+    if isinstance(template, PromptTemplate):
         filtered_stub_inputs = {
             k: v for k, v in stub_inputs.items() if k in template.input_variables
         }
@@ -258,10 +251,10 @@ def format_chat_template_with_stub_inputs(
         ]
         # flatten
         return [item for sublist in messages for item in sublist]
-    elif isinstance(template, MessagesPlaceholder):
+    if isinstance(template, MessagesPlaceholder):
         # declared inline with the special "chat_history" role
         return [{"role": "chat_history", "content": f"{{{template.variable_name}}}"}]
-    elif isinstance(template, ChatMessagePromptTemplate):
+    if isinstance(template, ChatMessagePromptTemplate):
         # Introduces the `role` property
         filtered_stub_inputs = {
             k: v for k, v in stub_inputs.items() if k in template.input_variables
@@ -272,7 +265,7 @@ def format_chat_template_with_stub_inputs(
                 "content": format_string_prompt_template(template.prompt, filtered_stub_inputs),
             }
         ]
-    elif isinstance(template, BaseMessage):
+    if isinstance(template, BaseMessage):
         # Raw, untemplated message (AIMessage, HumanMessage, etc)
         return [
             {
@@ -280,7 +273,7 @@ def format_chat_template_with_stub_inputs(
                 "content": template.content,
             }
         ]
-    elif isinstance(template, BaseStringMessagePromptTemplate):
+    if isinstance(template, BaseStringMessagePromptTemplate):
         # introduces the `prompt`, but we just use format to make a string
         filtered_stub_inputs = {
             k: v for k, v in stub_inputs.items() if k in template.input_variables
@@ -291,7 +284,7 @@ def format_chat_template_with_stub_inputs(
         ]
         # flatten
         return [item for sublist in sub_messages for item in sublist]
-    elif isinstance(template, BaseMessagePromptTemplate):
+    if isinstance(template, BaseMessagePromptTemplate):
         # A catch-all - all of the above should have caught this
         filtered_stub_inputs = {
             k: v for k, v in stub_inputs.items() if k in template.input_variables
@@ -301,8 +294,7 @@ def format_chat_template_with_stub_inputs(
             format_chat_template_with_stub_inputs(m, stub_inputs, f"  {prefix}") for m in messages
         ]
         return [item for sublist in sub_messages for item in sublist]
-    else:  #  isinstance(template, BasePromptTemplate):
-        raise ValueError(f"Unknown template type {type(template)}")
+    raise ValueError(f"Unknown template type {type(template)}")
 
 
 def format_string_prompt_template(v: StringPromptTemplate, stub_inputs: Dict[str, Any]) -> str:

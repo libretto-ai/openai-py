@@ -15,7 +15,7 @@ class Reviver:
         secrets_map: Optional[Dict[str, str]] = None,
         valid_namespaces: Optional[List[str]] = None,
     ) -> None:
-        self.secrets_map = secrets_map or dict()
+        self.secrets_map = secrets_map or {}
         # By default only support langchain, but user can pass in additional namespaces
         self.valid_namespaces = (
             ["langchain", *valid_namespaces] if valid_namespaces else ["langchain"]
@@ -30,10 +30,9 @@ class Reviver:
             [key] = value["id"]
             if key in self.secrets_map:
                 return self.secrets_map[key]
-            else:
-                if key in os.environ and os.environ[key]:
-                    return os.environ[key]
-                raise KeyError(f'Missing key "{key}" in load(secrets_map)')
+            if key in os.environ and os.environ[key]:
+                return os.environ[key]
+            raise KeyError(f'Missing key "{key}" in load(secrets_map)')
 
         if (
             value.get("lc", None) == 1
@@ -41,8 +40,7 @@ class Reviver:
             and value.get("id", None) is not None
         ):
             raise NotImplementedError(
-                "Trying to load an object that doesn't implement "
-                f"serialization: {value}"
+                "Trying to load an object that doesn't implement " f"serialization: {value}"
             )
 
         if (
@@ -68,7 +66,7 @@ class Reviver:
 
             # We don't need to recurse on kwargs
             # as json.loads will do that for us.
-            kwargs = value.get("kwargs", dict())
+            kwargs = value.get("kwargs", {})
             return cls(**kwargs)
 
         return value

@@ -19,18 +19,26 @@ jobs:
             cancel-in-progress: true
         steps:
             - uses: actions/checkout@v2
+
             - name: Set up Python ${{ matrix.python-version }}
               uses: actions/setup-python@v2
               with:
                   python-version: ${{ matrix.python-version }}
+
             - name: Install poetry
               uses: abatilo/actions-poetry@v2
+
             - uses: actions/cache@v3
               name: Define a cache for the virtual environment based on the dependencies lock file
               with:
                   path: ./.venv
                   key: venv-${{ hashFiles('poetry.lock') }}-${{ matrix.python-version }}
+
             - name: Install the project dependencies
               run: poetry install
+
             - name: Run the tests
               run: poetry run pytest -v
+
+            - name: Run pylint
+              run: poetry run pylint --errors-only im_openai

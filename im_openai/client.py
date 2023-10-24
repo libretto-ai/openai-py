@@ -10,6 +10,7 @@ import aiohttp
 
 from .background import ensure_background_thread
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -46,7 +47,7 @@ async def send_event(
     feedback_key: str | None = None,
 ) -> SendEventResponse | None:
     """Send an event to Imaginary Dev. Returns the id of the event that was added on the server."""
-    PROMPT_REPORTING_URL = get_url("event", "PROMPT_REPORTING_URL")
+    prompt_reporting_url = get_url("event", "PROMPT_REPORTING_URL")
     event = {
         "apiName": prompt_template_name,
         "params": {},
@@ -55,7 +56,7 @@ async def send_event(
         "modelParameters": model_params or {},
     }
 
-    logger.debug(f"Sending event to {PROMPT_REPORTING_URL} {prompt_template_name}")
+    logger.debug("Sending event to %s %s", prompt_reporting_url, prompt_template_name)
     if project_key is not None:
         event["projectKey"] = project_key
     if api_key is not None:
@@ -97,10 +98,10 @@ async def send_event(
     if parent_event_id is not None:
         event["parentEventId"] = str(parent_event_id)
 
-    result = await session.post(PROMPT_REPORTING_URL, json=event)
+    result = await session.post(prompt_reporting_url, json=event)
     json: SendEventResponse = await result.json()
     if result.status > 299:
-        logger.debug(f"Event response: {result.status} for {prompt_template_name}: {json}")
+        logger.debug("Event response: %s for %s: %s", result.status, prompt_template_name, json)
     return json
 
 
@@ -223,15 +224,15 @@ async def send_feedback(
     better_response: str | None = None,
     rating: float | None = None,
 ):
-    PROMPT_FEEDBACK_URL = get_url("feedback", "PROMPT_FEEDBACK_URL")
+    prompt_feedback_url = get_url("feedback", "PROMPT_FEEDBACK_URL")
     feedback_call = {
         "feedback_key": feedback_key,
         "apiKey": api_key,
         "rating": rating,
         "better_response": better_response,
     }
-    result = await session.post(PROMPT_FEEDBACK_URL, json=feedback_call)
+    result = await session.post(prompt_feedback_url, json=feedback_call)
     json: SendEventResponse = await result.json()
     if result.status > 299:
-        logger.debug(f"Feedback response: {result.status} for {feedback_key}: {json}")
+        logger.debug("Feedback response: %s for %s: %s", result.status, feedback_key, json)
     return json

@@ -41,7 +41,6 @@ def patch_openai_class(
     oldcreate = cls.create
 
     def local_create(
-        cls,
         *args,
         stream: bool = False,
         ip_project_key=None,
@@ -134,19 +133,19 @@ def patch_openai_class(
 
     oldacreate = cls.acreate
 
-    async def local_create_async(cls, *args, template=None, **kwargs):
+    async def local_create_async(*args, **kwargs):
         # TODO: record the request and response with the template
         return await oldacreate(*args, **kwargs)
 
     setattr(
         cls,
         "create",
-        classmethod(lambda cls, *args, **kwds: local_create(cls, *args, **kwds)),
+        classmethod(local_create),
     )
     setattr(
         cls,
         "acreate",
-        classmethod(lambda cls, *args, **kwds: local_create_async(cls, *args, **kwds)),
+        classmethod(local_create_async),
     )
 
     def unpatch():
@@ -168,7 +167,7 @@ def stream_extract(responses: Iterable[Dict]) -> Tuple[Iterable[Dict], str]:
     return (original_response, "".join(accumulated))
 
 
-def get_completion_result(response: Dict[str, Any] | Iterable[Dict[str, Any]], stream: bool):
+def get_completion_result(response: Dict[str, Any] | Iterable[Dict[str, Any]], _stream: bool):
     # No streaming support in non-chat yet
     # if stream:
     #     return stream_extract(response)
@@ -186,7 +185,7 @@ def stream_extract_chat(
         if "content" in response["choices"][0]["delta"]:
             accumulated.append(response["choices"][0]["delta"]["content"])
         if "function_call" in response["choices"][0]["delta"]:
-            logger.warn("Streaming a function_call response is not supported yet.")
+            logger.warning("Streaming a function_call response is not supported yet.")
     return (original_response, "".join(accumulated))
 
 
@@ -204,10 +203,9 @@ def get_chat_result(response: Iterable[Dict[str, Any]] | Dict[str, Any], stream:
 
 
 def get_message_content(message: Dict[str, Any]):
-    if message["content"]:
-        return message["content"]
     if "function_call" in message:
         return json.dumps({"function_call": message["function_call"]})
+    return message.get("content")
 
 
 def patch_openai(
@@ -220,7 +218,7 @@ def patch_openai(
 
     Returns a function which may be called to "unpatch" the APIs."""
 
-    def get_completion_prompt(*args, prompt=None, **kwargs):
+    def get_completion_prompt(prompt=None):
         return prompt
 
     unpatch_completion = patch_openai_class(
@@ -233,7 +231,7 @@ def patch_openai(
         allow_unnamed_prompts=allow_unnamed_prompts,
     )
 
-    def get_chat_prompt(*args, messages=None, **kwargs):
+    def get_chat_prompt(messages=None):
         # TODO: What should we be sending? For now we'll just send the last message
         prompt_text = messages
         return prompt_text

@@ -67,6 +67,8 @@ def ensure_background_thread():
         with ensure_background_thread() as call_async_function:
             call_async_function(send_event, *args, **kwargs)
     """
+    # Allow globals here since we lazily create these background threads.
+    # pylint: disable=global-statement
     global _send_events_thread
     global _send_event_queue
     global _send_event_loop
