@@ -186,7 +186,8 @@ The following options may be passed as kwargs when patching:
 - `allow_unnamed_prompts`: When set to `True`, every prompt will be sent to
   Templatest even if no prompt template name as been provided (either via the
   `prompt_template_name` kwarg or via the `ip_prompt_template_name` parameter on
-  `create`).
+  `create`). `False` by default.
+- `redact_pii`: When `True`, certain personally identifying information (PII) will be attempted to be redacted before being sent to the Templatest backend. See the `pii` package for details about the types of PII being detected/redacted. `False` by default.
 
 ### Additional Parameters
 

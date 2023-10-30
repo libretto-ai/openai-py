@@ -61,10 +61,10 @@ class NameRecognizer(LocalRecognizer):
         )
 
         # Lazy load names.json to construct regex
-        if not self._well_known_names_regex:
+        if not NameRecognizer._well_known_names_regex:
             with importlib.resources.open_text("im_openai.pii.data", "names.json") as f:
                 names = json.load(f)
-                self._well_known_names_regex = re.compile(
+                NameRecognizer._well_known_names_regex = re.compile(
                     r"\b(\s*)(\s*(" + "|".join(names) + r"))+\b", re.I | re.M
                 )
 
@@ -103,15 +103,15 @@ class NameRecognizer(LocalRecognizer):
                 text, pos=greeting_or_closing_match.end()
             )
 
-        if self._well_known_names_regex:
-            for match in self._well_known_names_regex.finditer(text):
-                results.append(
-                    RecognizerResult(
-                        entity_type=_ENTITY_TYPE,
-                        start=match.end(1),
-                        end=match.end(),
-                        score=1.0,
-                    )
+        assert NameRecognizer._well_known_names_regex is not None
+        for match in NameRecognizer._well_known_names_regex.finditer(text):
+            results.append(
+                RecognizerResult(
+                    entity_type=_ENTITY_TYPE,
+                    start=match.end(1),
+                    end=match.end(),
+                    score=1.0,
                 )
+            )
 
         return results

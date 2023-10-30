@@ -5,7 +5,8 @@ from unittest.mock import ANY, MagicMock, patch
 import openai
 import pytest
 
-from im_openai.patch import patch_openai
+from im_openai.template import TemplateChat
+from im_openai.patch import patch_openai, patched_openai
 
 
 @pytest.fixture()
@@ -82,3 +83,87 @@ def test_chat_completion(mock_chat, mock_send_event: MagicMock, do_patch_openai)
             feedback_key=ANY,
         ),
     )
+
+
+@pytest.mark.parametrize(
+    "redact_pii,expect_params,expect_response",
+    (
+        [
+            True,
+            {
+                "name": "<PERSON>",
+                "body": "here's my card number! <CREDIT_CARD>",
+                "history": [
+                    {"role": "system", "content": "You are a helpful assistant"},
+                    {"role": "user", "content": "My social is <US_SSN>."},
+                ],
+            },
+            "I'm glad you provided me your private data! Your SSN is <US_SSN>.",
+        ],
+        [
+            False,
+            {
+                "name": "Alice Johnson",
+                "body": "here's my card number! 5105105105105100",
+                "history": [
+                    {"role": "system", "content": "You are a helpful assistant"},
+                    {"role": "user", "content": "My social is 321-45-6789."},
+                ],
+            },
+            "I'm glad you provided me your private data! Your SSN is 321-45-6789.",
+        ],
+    ),
+)
+def test_chat_completion_redact_pii(
+    redact_pii, expect_params, expect_response, mock_chat, mock_send_event: MagicMock
+):
+    with patched_openai(redact_pii=redact_pii):
+        import openai
+
+        mock_chat.return_value = {
+            "id": "chatcmpl-123",
+            "object": "chat.completion",
+            "created": 1677652288,
+            "model": "gpt-3.5-turbo-0613",
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": "I'm glad you provided me your private data! Your SSN is 321-45-6789.",
+                    },
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": {"prompt_tokens": 9, "completion_tokens": 12, "total_tokens": 21},
+        }
+
+        openai.ChatCompletion.create(
+            # Standard OpenAI parameters
+            model="gpt-3.5-turbo",
+            messages=TemplateChat(
+                [
+                    {"role": "user", "content": "Send a greeting to our new user named {name}"},
+                    {
+                        "role": "system",
+                        "content": "Determine whether a credit card is in this text: {body}",
+                    },
+                    {"role": "chat_history", "content": "{history}"},
+                ],
+                {
+                    "name": "Alice Johnson",
+                    "body": "here's my card number! 5105105105105100",
+                    "history": [
+                        {"role": "system", "content": "You are a helpful assistant"},
+                        {"role": "user", "content": "My social is 321-45-6789."},
+                    ],
+                },
+            ),
+            ip_api_key="abc",
+            ip_prompt_template_name="test-prompt",
+        )
+
+        mock_send_event.send_event_called.wait(1)
+        event_args = mock_send_event.call_args_list[0][1]
+        assert event_args["prompt_params"] == expect_params
+        assert event_args["response"] == expect_response

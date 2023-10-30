@@ -10,6 +10,7 @@ import openai
 
 from .client import event_session
 from .template import TemplateChat, TemplateString
+from .pii import Redactor
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,7 @@ def patch_openai_class(
     chat_id: Optional[str] = None,
     api_key: Optional[str] = None,
     allow_unnamed_prompts: bool = False,
+    redact_pii: bool = False,
 ):
     """Patch an openai class to add logging capabilities.
 
@@ -40,7 +42,10 @@ def patch_openai_class(
     """
     oldcreate = cls.create
 
+    pii_redactor = Redactor() if redact_pii else None
+
     def local_create(
+        _cls,
         *args,
         stream: bool = False,
         ip_project_key=None,
@@ -109,6 +114,19 @@ def patch_openai_class(
             elif isinstance(ip_template, list):
                 ip_template_chat = ip_template
 
+        # Redact PII from template parameters if configured to do so
+        if pii_redactor and ip_template_params:
+            for name, param in ip_template_params.items():
+                try:
+                    ip_template_params[name] = pii_redactor.redact(param)
+                except Exception as e:
+                    logger.warning(
+                        "Failed to redact PII from parameter: key=%s, value=%s, error=%s",
+                        name,
+                        param,
+                        e,
+                    )
+
         with event_session(
             project_key=ip_project_key,
             api_key=ip_api_key,
@@ -124,9 +142,21 @@ def patch_openai_class(
         ) as complete_event:
             response = oldcreate(*args, **kwargs, stream=stream)
             (return_response, event_response) = get_result(response, stream)
+
             # Can only do this for non-streamed responses right now
             if isinstance(return_response, dict):
                 return_response["ip_feedback_key"] = feedback_key  # type: ignore
+
+            # Redact PII before recording the event
+            if pii_redactor and event_response:
+                try:
+                    event_response = pii_redactor.redact_text(event_response)
+                except Exception as e:
+                    logger.warning(
+                        "Failed to redact PII from response: error=%s",
+                        e,
+                    )
+
             complete_event(event_response)
 
         return return_response
@@ -213,6 +243,7 @@ def patch_openai(
     prompt_template_name: Optional[str] = None,
     chat_id: Optional[str] = None,
     allow_unnamed_prompts: bool = False,
+    redact_pii: bool = False,
 ):
     """Patch openai APIs to add logging capabilities.
 
@@ -229,6 +260,7 @@ def patch_openai(
         prompt_template_name=prompt_template_name,
         chat_id=chat_id,
         allow_unnamed_prompts=allow_unnamed_prompts,
+        redact_pii=redact_pii,
     )
 
     def get_chat_prompt(messages=None):
@@ -244,6 +276,7 @@ def patch_openai(
         prompt_template_name=prompt_template_name,
         chat_id=chat_id,
         allow_unnamed_prompts=allow_unnamed_prompts,
+        redact_pii=redact_pii,
     )
 
     def unpatch():
@@ -258,6 +291,8 @@ def patched_openai(
     api_key: Optional[str] = None,
     prompt_template_name: Optional[str] = None,
     chat_id: Optional[str] = None,
+    allow_unnamed_prompts: bool = False,
+    redact_pii: bool = False,
 ):
     """Simple context manager to wrap patching openai. Usage:
 
@@ -267,7 +302,11 @@ def patched_openai(
     ```
     """
     unpatch = patch_openai(
-        api_key=api_key, prompt_template_name=prompt_template_name, chat_id=chat_id
+        api_key=api_key,
+        prompt_template_name=prompt_template_name,
+        chat_id=chat_id,
+        allow_unnamed_prompts=allow_unnamed_prompts,
+        redact_pii=redact_pii,
     )
     yield
     unpatch()
