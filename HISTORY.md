@@ -181,3 +181,7 @@
 ## 0.14.0
 
 - Replace `only_named_prompts` by `allow_unnamed_prompts`
+
+## 0.15.0
+
+- Add ability to redact PII in the SDK (see `redact_pii` option)
