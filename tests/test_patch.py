@@ -5,13 +5,13 @@ from unittest.mock import ANY, MagicMock, patch
 import openai
 import pytest
 
-from im_openai.template import TemplateChat
-from im_openai.patch import patch_openai, patched_openai
+from libretto_openai.template import TemplateChat
+from libretto_openai.patch import patch_openai, patched_openai
 
 
 @pytest.fixture()
 def mock_send_event():
-    with patch("im_openai.client.send_event", autospec=True) as mock:
+    with patch("libretto_openai.client.send_event", autospec=True) as mock:
         mock.send_event_called = threading.Event()
         mock.send_event_called.clear()
         mock.side_effect = lambda *args, **kwargs: mock.send_event_called.set()

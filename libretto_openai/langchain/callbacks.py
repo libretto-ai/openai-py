@@ -16,7 +16,7 @@ from langchain.prompts import BasePromptTemplate
 from langchain.prompts.chat import BaseMessagePromptTemplate
 from langchain.schema import AgentAction, AgentFinish, BaseMessage, LLMResult
 
-from im_openai import client
+from libretto_openai import client
 
 from . import util
 

@@ -4,9 +4,9 @@ import sys
 import uuid
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-import im_openai
+import libretto_openai
 
-im_openai.patch_openai()
+libretto_openai.patch_openai()
 
 from langchain.llms import OpenAI, OpenAIChat
 

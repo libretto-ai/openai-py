@@ -1,4 +1,4 @@
-from im_openai.template import TemplateChat, TemplateString
+from libretto_openai.template import TemplateChat, TemplateString
 
 
 def test_template_string():

@@ -8,10 +8,10 @@ import openai
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-from im_openai import patch_openai, TemplateChat, TemplateString
+from libretto_openai import patch_openai, TemplateChat, TemplateString
 
 
-imlogger = logging.getLogger("im_openai")
+imlogger = logging.getLogger("libretto_openai")
 imlogger.setLevel(logging.DEBUG)
 imlogger.addHandler(logging.StreamHandler())
 

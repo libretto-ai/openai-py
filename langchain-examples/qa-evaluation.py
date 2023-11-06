@@ -17,10 +17,10 @@ from openai import ChatCompletion
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-from im_openai import langchain as langchain_util
+from libretto_openai import langchain as langchain_util
 
 logging.basicConfig(stream=sys.stderr)
-logger = logging.getLogger("im_openai")
+logger = logging.getLogger("libretto_openai")
 logger.setLevel(logging.INFO)
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))

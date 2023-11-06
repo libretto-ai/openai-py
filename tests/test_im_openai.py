@@ -1,10 +1,8 @@
 #!/usr/bin/env python
 
-"""Tests for `im_openai` package."""
-
 import pytest
 
-import im_openai
+import libretto_openai
 
 
 @pytest.fixture
