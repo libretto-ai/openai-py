@@ -1428,23 +1428,24 @@ murmurhash = ">=0.28.0,<1.1.0"
 
 [[package]]
 name = "presidio-analyzer"
-version = "2.2.33"
+version = "2.2.350"
 description = "Presidio analyzer package"
 optional = false
 python-versions = "*"
 files = [
-    {file = "presidio_analyzer-2.2.33-py3-none-any.whl", hash = "sha256:1e0d4237f9ac28953e910900b42852927dbf8935de7bf023aebddc752a5bf9ea"},
+    {file = "presidio_analyzer-2.2.350-py3-none-any.whl", hash = "sha256:27989af82e6c78ecb4b6f85f587c5d954e126234f3aa091fd2bd1c1d3c637489"},
 ]
 
 [package.dependencies]
-phonenumbers = ">=8.12"
+phonenumbers = ">=8.12,<9.0.0"
 pyyaml = "*"
 regex = "*"
-spacy = ">=3.4.4"
+spacy = ">=3.4.4,<4.0.0"
 tldextract = "*"
 
 [package.extras]
-transformers = ["torch", "transformers"]
+stanza = ["spacy-stanza", "stanza"]
+transformers = ["spacy-huggingface-pipelines"]
 
 [[package]]
 name = "presidio-anonymizer"
