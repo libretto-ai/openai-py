@@ -17,7 +17,7 @@ To send events to Libretto, you'll need to create a project. From the project yo
 1. **API key**: (`api_key`) This is generated for the project and is used to identify the project and environment (dev, staging, prod) that the event is coming from.
 2. **Template Name**: (`prompt_template_name`) This uniquely identifies a particular prompt that you are using and allows projects to have multiple prompts. This can be in any format but we recommend using a dash-separated format, e.g. `my-prompt-name`.
 
-**Note:** Prompt template names can be auto-generated if the `allow_unnamed_prompts` configuration option is set (see [below](#configuration)). However, if you rely on auto-generated names, new revisions of the same prompt will show up as different prompt templates in Templatest.
+**Note:** Prompt template names can be auto-generated if the `allow_unnamed_prompts` configuration option is set (see [below](#configuration)). However, if you rely on auto-generated names, new revisions of the same prompt will show up as different prompt templates in Libretto.
 
 ### OpenAI
 
@@ -183,10 +183,10 @@ The following options may be passed as kwargs when patching:
   this is the name that will be associated with any `create` call that's made
   **without** an `ip_prompt_template_name` parameter.
 - `allow_unnamed_prompts`: When set to `True`, every prompt will be sent to
-  Templatest even if no prompt template name as been provided (either via the
+  Libretto even if no prompt template name as been provided (either via the
   `prompt_template_name` kwarg or via the `ip_prompt_template_name` parameter on
   `create`). `False` by default.
-- `redact_pii`: When `True`, certain personally identifying information (PII) will be attempted to be redacted before being sent to the Templatest backend. See the `pii` package for details about the types of PII being detected/redacted. `False` by default.
+- `redact_pii`: When `True`, certain personally identifying information (PII) will be attempted to be redacted before being sent to the Libretto backend. See the `pii` package for details about the types of PII being detected/redacted. `False` by default.
 
 ### Additional Parameters
 
@@ -283,14 +283,14 @@ Sometimes the answer provided by the LLM is not ideal, and your users may be
 able to help you find better responses. There are a few common cases:
 
 - You might use the LLM to suggest the title of a news article, but let the
-    user edit it. If they change the title, you can send feedback to Templatest
+    user edit it. If they change the title, you can send feedback to Libretto
     that the answer was not ideal.
 - You might provide a chatbot that answers questions, and the user can rate the
     answers with a thumbs up (good) or thumbs down (bad).
 
-You can send this feedback to Tepmlatest by calling `send_feedback()`. This will
-send a feedback event to Templatest about a prompt that was previously called, and
-let you review this feedback in the Templatest dashboard. You can use this
+You can send this feedback to Libretto by calling `send_feedback()`. This will
+send a feedback event to Libretto about a prompt that was previously called, and
+let you review this feedback in the Libretto dashboard. You can use this
 feedback to develop new tests and improve your prompts.
 
 ```python
@@ -304,7 +304,7 @@ completion = openai.ChatCompletion.create(
 # Maybe the user didn't like the answer, so ask them for a better one.
 better_response = askUserForBetterResult(completion["choices"][0]["text"])
 
-# If the user provided a better answer, send feedback to Templatest
+# If the user provided a better answer, send feedback to Libretto
 if better_response !== completion["choices"][0]["text"]:
 # feedback key is automatically injected into OpenAI response object.
 feedback_key = completion.ip_feedback_key
