@@ -1,6 +1,6 @@
 # Imaginary Dev OpenAI wrapper
 
-[![image](https://img.shields.io/pypi/v/im_openai.svg)](https://pypi.python.org/pypi/im_openai)
+[![image](https://img.shields.io/pypi/v/libretto_openai.svg)](https://pypi.python.org/pypi/libretto_openai)
 
 Wrapper library for openai to send events to the Imaginary Programming
 monitor
@@ -30,7 +30,7 @@ To allow our tools to separate the "prompt" from the "prompt parameters", use `T
 Use `TemplateChat` For the ChatCompletion APIs:
 
 ```python
-from im_openai import patched_openai, TemplateChat
+from libretto_openai import patched_openai, TemplateChat
 
 with patched_openai(api_key="...", prompt_template_name="sport-emoji"):
     import openai
@@ -48,7 +48,7 @@ with patched_openai(api_key="...", prompt_template_name="sport-emoji"):
 Use `TemplateText` for the Completion API:
 
 ```python
-from im_openai import patched_openai, TemplateText
+from libretto_openai import patched_openai, TemplateText
 
 with patched_openai(api_key="...", prompt_template_name="sport-emoji"):
     import openai
@@ -67,7 +67,7 @@ with patched_openai(api_key="...", prompt_template_name="sport-emoji"):
 Rather than using a context manager, you can patch the library once at startup:
 
 ```python
-from im_openai import patch_openai
+from libretto_openai import patch_openai
 patch_openai(api_key="...", prompt_template_name="...")
 ```
 
@@ -86,7 +86,7 @@ completion = openai.ChatCompletion.create(
 While the use of `TemplateText` and `TemplateChat` are preferred, Most of the parameters passed during patch can also be passed directly to the `create()`, with an `ip_` prefix.
 
 ```python
-from im_openai import patch_openai
+from libretto_openai import patch_openai
 patch_openai()
 
 completion = openai.ChatCompletion.create(
@@ -115,7 +115,7 @@ Using a context manager: (recommended)
 
 ```python
 from langchain import LLMChain, PromptTemplate, OpenAI
-from im_openai.langchain import prompt_watch_tracing
+from libretto_openai.langchain import prompt_watch_tracing
 
 with prompt_watch_tracing(api_key="4b2a6608-86cd-4819-aba6-479f9edd8bfb", prompt_template_name="sport-emoji"):
     chain = LLMChain(llm=OpenAI(),
@@ -129,7 +129,7 @@ the prompt_template_name parameter can also be passed directly to a template whe
 
 ```python
 from langchain import OpenAI, PromptTemplate, LLMChain
-from im_openai.langchain import prompt_watch_tracing
+from libretto_openai.langchain import prompt_watch_tracing
 
 # The default prompt_template_name is "default-questions"
 with prompt_watch_tracing(api_key="4b2a6608-86cd-4819-aba6-479f9edd8bfb", prompt_template_name="default-questions"):
@@ -154,7 +154,7 @@ Be nice and enthusiastic but not overwhelming.
 You can patch directly:
 
 ```python
-from im_openai.langchain import enable_prompt_watch_tracing, disable_prompt_watch_tracing
+from libretto_openai.langchain import enable_prompt_watch_tracing, disable_prompt_watch_tracing
 
 old_tracer = enable_prompt_watch_tracing(api_key="4b2a6608-86cd-4819-aba6-479f9edd8bfb", prompt_template_name="sport-emoji")
 
@@ -295,7 +295,7 @@ let you review this feedback in the Templatest dashboard. You can use this
 feedback to develop new tests and improve your prompts.
 
 ```python
-from im_openai import patch_openai, client
+from libretto_openai import patch_openai, client
 patch_openai()
 
 completion = openai.ChatCompletion.create(
