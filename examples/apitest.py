@@ -8,7 +8,8 @@ import openai
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-import im_openai
+from im_openai import patch_openai, TemplateChat, TemplateString
+
 
 imlogger = logging.getLogger("im_openai")
 imlogger.setLevel(logging.DEBUG)
@@ -17,31 +18,25 @@ imlogger.addHandler(logging.StreamHandler())
 
 def main():
     print("TESTING CHAT COMPLETION API")
-    unpatch = im_openai.patch_openai(
-        api_key="619dd081-2f72-4eb1-9f90-3d3c3772334d",
-    )
+    unpatch = patch_openai()
     template = "Send a greeting to our new user named {name}"
-    ip_template_params = {"name": "Alec"}
-    prompt_text = template.format(**ip_template_params)
+    params = {"name": "Alec"}
 
-    chat_messages = [{"role": "user", "content": prompt_text}]
-    chat_template = [{"role": "user", "content": template}]
     chat_completion = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
-        messages=chat_messages,
+        messages=TemplateChat(
+            [{"role": "user", "content": template}],
+            params,
+        ),
         ip_prompt_template_name="test-from-apitest-chat",
-        ip_template_chat=chat_template,
-        ip_template_params=ip_template_params,
     )
     print(chat_completion)
 
     print("TESTING COMPLETION API")
     completion = openai.Completion.create(
         model="text-davinci-003",
-        prompt=prompt_text,
+        prompt=TemplateString(template, params),
         ip_prompt_template_name="test-from-apitest-completion",
-        ip_template_text=template,
-        ip_template_params=ip_template_params,
     )
     print(completion)
 
@@ -49,10 +44,11 @@ def main():
     chat_completion = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         stream=True,
-        messages=chat_messages,
+        messages=TemplateChat(
+            [{"role": "user", "content": template}],
+            params,
+        ),
         ip_prompt_template_name="test-from-apitest-chat",
-        ip_template_chat=chat_template,
-        ip_template_params=ip_template_params,
     )
     for chat_result in chat_completion:
         delta = cast(Dict, chat_result)
