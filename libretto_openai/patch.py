@@ -64,14 +64,14 @@ def patch_openai_class(
         ip_prompt_template_name = (
             ip_prompt_template_name
             or prompt_template_name
-            or os.environ.get("PROMPT_TEMPLATE_NAME")
+            or os.environ.get("LIBRETTO_TEMPLATE_NAME")
             or ip_api_name  # legacy
         )
-        ip_api_key = ip_api_key or api_key or os.environ.get("PROMPT_API_KEY")
-        ip_chat_id = ip_chat_id or chat_id or os.environ.get("PROMPT_CHAT_ID")
+        ip_api_key = ip_api_key or api_key or os.environ.get("LIBRETTO_API_KEY")
+        ip_chat_id = ip_chat_id or chat_id or os.environ.get("LIBRETTO_CHAT_ID")
 
         if ip_project_key is None:
-            ip_project_key = os.environ.get("PROMPT_PROJECT_KEY")
+            ip_project_key = os.environ.get("LIBRETTO_PROJECT_KEY")
         if ip_project_key is None and ip_api_key is None:
             return oldcreate(*args, **kwargs, stream=stream)
         if ip_prompt_template_name is None and not allow_unnamed_prompts:

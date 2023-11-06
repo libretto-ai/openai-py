@@ -108,8 +108,8 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             template_text (Optional[str], optional): The template to use for completion events. Defaults to None.
             template_chat (Optional[List[Union[BaseMessagePromptTemplate, BaseMessage]]], optional): The template to use for chat events. Defaults to None.
         """
-        self.project_key = project_key or os.environ.get("PROMPT_PROJECT_KEY", None)
-        self.api_key = api_key or os.environ.get("PROMPT_API_KEY", "")
+        self.project_key = project_key or os.environ.get("LIBRETTO_PROJECT_KEY", None)
+        self.api_key = api_key or os.environ.get("LIBRETTO_API_KEY", "")
         if not self.api_key:
             raise ValueError("api_key must be provided")
         self.valid_namespaces = valid_namespaces

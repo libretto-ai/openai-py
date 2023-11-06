@@ -9,7 +9,9 @@ from libretto_openai.client import send_event
 
 @pytest.fixture
 def _mock_env(monkeypatch):
-    monkeypatch.setitem(os.environ, "PROMPT_REPORTING_URL", "https://app.getlibretto.com/api/event")
+    monkeypatch.setitem(
+        os.environ, "LIBRETTO_REPORTING_URL", "https://app.getlibretto.com/api/event"
+    )
 
 
 @pytest.mark.asyncio
