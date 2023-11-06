@@ -1,4 +1,4 @@
-"""Utilities for sending events to Imaginary Dev."""
+"""Utilities for sending events to Libretto."""
 import logging
 import os
 import time
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 def get_url(api_name: str, environment_name: str) -> str:
     if os.environ.get(environment_name):
         return os.environ[environment_name]
-    prefix = os.environ.get("PROMPT_API_PREFIX", "https://app.imaginary.dev/api")
+    prefix = os.environ.get("PROMPT_API_PREFIX", "https://app.getlibretto.com/api")
     return f"{prefix}/{api_name}"
 
 
@@ -46,7 +46,7 @@ async def send_event(
     model_params: Dict | None = None,
     feedback_key: str | None = None,
 ) -> SendEventResponse | None:
-    """Send an event to Imaginary Dev. Returns the id of the event that was added on the server."""
+    """Send an event to Libretto. Returns the id of the event that was added on the server."""
     prompt_reporting_url = get_url("event", "PROMPT_REPORTING_URL")
     event = {
         "apiName": prompt_template_name,

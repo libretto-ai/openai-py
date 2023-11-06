@@ -102,9 +102,9 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         """Initialize the callback handler
 
         Args:
-            api_key (str): The Imaginary Programming API key
-            project_key (str): The Imaginary Programming project key
-            prompt_template_name (str): The Imaginary Programming API name
+            api_key (str): The Libretto API key.
+            project_key (str): The Libretto project key.
+            prompt_template_name (str): A name to uniquely identify this prompt in Libretto.
             template_text (Optional[str], optional): The template to use for completion events. Defaults to None.
             template_chat (Optional[List[Union[BaseMessagePromptTemplate, BaseMessage]]], optional): The template to use for chat events. Defaults to None.
         """

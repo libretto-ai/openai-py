@@ -9,7 +9,7 @@ from libretto_openai.client import send_event
 
 @pytest.fixture
 def _mock_env(monkeypatch):
-    monkeypatch.setitem(os.environ, "PROMPT_REPORTING_URL", "https://app.imaginary.dev/api/event")
+    monkeypatch.setitem(os.environ, "PROMPT_REPORTING_URL", "https://app.getlibretto.com/api/event")
 
 
 @pytest.mark.asyncio
@@ -17,7 +17,7 @@ def _mock_env(monkeypatch):
 @patch("os.environ.get")
 async def test_send_event_chat(mock_env_get, mock_post, _mock_env):
     # Mocking the environment variable for URL
-    mock_env_get.return_value = "https://app.imaginary.dev/api/event"
+    mock_env_get.return_value = "https://app.getlibretto.com/api/event"
 
     # Mocking the response from the aiohttp post call
     mock_response = AsyncMock()
@@ -55,7 +55,7 @@ async def test_send_event_chat(mock_env_get, mock_post, _mock_env):
 
         assert mock_post.call_count == 2
         mock_post.assert_called_with(
-            "https://app.imaginary.dev/api/event",
+            "https://app.getlibretto.com/api/event",
             json={
                 "apiName": "test_prompt_template_name",
                 "params": {"param1": "value1", "param2": "value2"},
@@ -74,7 +74,7 @@ async def test_send_event_chat(mock_env_get, mock_post, _mock_env):
 @patch("os.environ.get")
 async def test_send_event_text(mock_env_get, mock_post, _mock_env):
     # Mocking the environment variable for URL
-    mock_env_get.return_value = "https://app.imaginary.dev/api/event"
+    mock_env_get.return_value = "https://app.getlibretto.com/api/event"
 
     # Mocking the response from the aiohttp post call
     mock_response = AsyncMock()
@@ -112,7 +112,7 @@ async def test_send_event_text(mock_env_get, mock_post, _mock_env):
 
         assert mock_post.call_count == 2
         mock_post.assert_called_with(
-            "https://app.imaginary.dev/api/event",
+            "https://app.getlibretto.com/api/event",
             json={
                 "apiName": "test_prompt_template_name",
                 "params": {"param1": "value1", "param2": "value2"},

@@ -1,4 +1,4 @@
-"""Top-level package for Imaginary Dev OpenAI wrapper."""
+"""Top-level package for Libretto OpenAI wrapper."""
 
 __author__ = """Alec Flett"""
 __email__ = "alec@thegp.com"

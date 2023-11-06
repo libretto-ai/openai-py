@@ -54,7 +54,7 @@ def format_langchain_value(value: Any) -> Any:
 def format_chat_template(
     messages: List[Union[BaseMessagePromptTemplate, BaseChatPromptTemplate, BaseMessage, List[Any]]]
 ) -> List[Dict[str, Any]]:
-    """Format a chat template into something that Imaginary Programming can deal with"""
+    """Format a chat template into something that Libretto can deal with"""
     lists = [_convert_message_to_dicts(message) for message in messages]
     # Flatten the list of lists
     return [item for sublist in lists for item in sublist]

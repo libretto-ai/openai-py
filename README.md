@@ -1,9 +1,8 @@
-# Imaginary Dev OpenAI wrapper
+# Libretto OpenAI Wrapper
 
 [![image](https://img.shields.io/pypi/v/libretto_openai.svg)](https://pypi.python.org/pypi/libretto_openai)
 
-Wrapper library for openai to send events to the Imaginary Programming
-monitor
+Wrapper library for openai to send events to Libretto
 
 ## Features
 
@@ -13,7 +12,7 @@ monitor
 
 ## Get Started
 
-To send events to Imaginary Programming, you'll need to create a project. From the project you'll need two things:
+To send events to Libretto, you'll need to create a project. From the project you'll need two things:
 
 1. **API key**: (`api_key`) This is generated for the project and is used to identify the project and environment (dev, staging, prod) that the event is coming from.
 2. **Template Name**: (`prompt_template_name`) This uniquely identifies a particular prompt that you are using and allows projects to have multiple prompts. This can be in any format but we recommend using a dash-separated format, e.g. `my-prompt-name`.
