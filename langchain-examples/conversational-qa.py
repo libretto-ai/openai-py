@@ -10,7 +10,7 @@ import shutil
 import sys
 import uuid
 
-from langchain.chains import ConversationalRetrievalChain, RetrievalQA
+from langchain.chains import ConversationalRetrievalChain
 from langchain.chat_models import ChatOpenAI
 from langchain.document_loaders import TextLoader
 from langchain.embeddings.openai import OpenAIEmbeddings
@@ -22,7 +22,6 @@ from langchain.prompts.chat import (
 )
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.vectorstores import FAISS
-from openai import ChatCompletion
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -34,10 +33,10 @@ logger.setLevel(logging.INFO)
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-ip_prompt_template_name = os.path.basename(__file__)
+prompt_template_name = os.path.basename(__file__)
 with langchain_util.prompt_watch_tracing(
-    api_key="f1ed34de-5069-48f9-a513-6095c45e3a30",
-    prompt_template_name=ip_prompt_template_name,
+    api_key=os.getenv("LIBRETTO_API_KEY"),
+    prompt_template_name=prompt_template_name,
     chat_id=str(uuid.uuid4()),
 ):
     loader = TextLoader(os.path.join(os.path.dirname(__file__), "state_of_the_union.txt"))
@@ -67,7 +66,7 @@ Standalone question:"""
     if "additional_kwargs" not in condense_question_template._lc_kwargs:
         condense_question_template._lc_kwargs["additional_kwargs"] = {}
     condense_question_template._lc_kwargs["additional_kwargs"].update(
-        ip_prompt_template_name=f"{ip_prompt_template_name}/condense_question"
+        libretto_prompt_template_name=f"{prompt_template_name}/condense_question"
     )
     qa = ConversationalRetrievalChain.from_llm(
         llm=ChatOpenAI(),

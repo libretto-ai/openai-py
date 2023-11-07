@@ -6,7 +6,7 @@ import openai
 import pytest
 
 from libretto_openai.template import TemplateChat
-from libretto_openai.patch import patch_openai, patched_openai
+from libretto_openai.patch import patch_openai, patched_openai, LibrettoCreateParams
 
 
 @pytest.fixture()
@@ -33,27 +33,29 @@ def mock_chat():
 
 def test_chat_completion(mock_chat, mock_send_event: MagicMock, do_patch_openai):
     template = "Send a greeting to our new user named {name}"
-    ip_template_params = {"name": "Alec"}
-    prompt_text = template.format(**ip_template_params)
+    template_params = {"name": "Alec"}
+    prompt_text = template.format(**template_params)
 
     chat_messages = [{"role": "user", "content": prompt_text}]
     chat_template = [{"role": "user", "content": template}]
     api_key = "alecf-local-playground"
     prompt_template_name = "test-from-apitest-chat"
-    event_id = uuid.uuid4()
-    parent_event_id = uuid.uuid4()
-    chat_id = uuid.uuid4()
+    event_id = str(uuid.uuid4())
+    parent_event_id = str(uuid.uuid4())
+    chat_id = str(uuid.uuid4())
     openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         messages=chat_messages,
         temperature=0.4,
-        ip_api_key=api_key,
-        ip_prompt_template_name=prompt_template_name,
-        ip_template_chat=chat_template,
-        ip_template_params=ip_template_params,
-        ip_parent_event_id=parent_event_id,
-        ip_event_id=event_id,
-        ip_chat_id=chat_id,
+        libretto=LibrettoCreateParams(
+            api_key=api_key,
+            prompt_template_name=prompt_template_name,
+            template_chat=chat_template,
+            template_params=template_params,
+            parent_event_id=parent_event_id,
+            event_id=event_id,
+            chat_id=chat_id,
+        ),
     )
     mock_send_event.send_event_called.wait(1)
     assert tuple(mock_send_event.call_args_list[0]) == (
@@ -68,7 +70,7 @@ def test_chat_completion(mock_chat, mock_send_event: MagicMock, do_patch_openai)
             prompt_template_chat=[
                 {"role": "user", "content": "Send a greeting to our new user named {name}"}
             ],
-            prompt_params=ip_template_params,
+            prompt_params=template_params,
             chat_id=chat_id,
             parent_event_id=parent_event_id,
             model_params={
@@ -159,8 +161,10 @@ def test_chat_completion_redact_pii(
                     ],
                 },
             ),
-            ip_api_key="abc",
-            ip_prompt_template_name="test-prompt",
+            libretto=LibrettoCreateParams(
+                api_key="abc",
+                prompt_template_name="test-prompt",
+            ),
         )
 
         mock_send_event.send_event_called.wait(1)

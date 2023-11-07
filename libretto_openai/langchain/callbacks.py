@@ -187,7 +187,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             # User might have overridden the prompt_template_name
             lc_kwargs = cast(SerializedConstructor, prompt_template.to_json())["kwargs"]
             prompt_template_name: str | None = lc_kwargs.get("additional_kwargs", {}).get(
-                "ip_prompt_template_name"
+                "libretto_prompt_template_name"
             )
             self.runs[run_id]["api_name"] = prompt_template_name
         elif prompt_template is None:

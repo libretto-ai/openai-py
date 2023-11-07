@@ -4,29 +4,37 @@ import sys
 import uuid
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-import libretto_openai
+from libretto_openai import patch_openai, LibrettoCreateParams
 
-libretto_openai.patch_openai()
+patch_openai(allow_unnamed_prompts=True)
 
 from langchain.llms import OpenAI, OpenAIChat
 
 llm = OpenAI(
     openai_api_key=os.environ["OPENAI_API_KEY"],
     verbose=True,
-    model_kwargs={"ip_project_key": "alecf-local-playground"},
+    model_kwargs={
+        "libretto": LibrettoCreateParams(
+            project_key="alecf-local-playground",
+        ),
+    },
 )
 
-socks = llm.predict(
-    "What would be a good company name for a company that makes colorful socks?",
-)
-
-print("socks = ", socks)
+try:
+    socks = llm.predict(
+        "What would be a good company name for a company that makes really colorful socks?",
+    )
+    print("socks = ", socks)
+except Exception as e:
+    print("Error:", e)
 
 llm2 = OpenAIChat(openai_api_key=os.environ["OPENAI_API_KEY"], verbose=True)
 
 socks2 = llm2.predict(
-    "What would be a good company name for a company that makes colorful socks?",
-    ip_event_id=str(uuid.uuid4()),
+    "What would be a good company name for a company that makes very colorful socks?",
+    libretto=LibrettoCreateParams(
+        event_id=str(uuid.uuid4()),
+    ),
 )
 
 print("socks2 = ", socks2)

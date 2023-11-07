@@ -6,8 +6,7 @@ Wrapper library for openai to send events to Libretto
 
 ## Features
 
-- Patches the openai library to allow user to set an ip_api_key and ip_prompt_template_name
-    for each request
+- Patches the openai library to allow user to set Libretto-specific parameters for each request
 - Works out of the box with langchain
 
 ## Get Started
@@ -82,10 +81,10 @@ completion = openai.ChatCompletion.create(
 
 ##### Manually passing parameters
 
-While the use of `TemplateText` and `TemplateChat` are preferred, Most of the parameters passed during patch can also be passed directly to the `create()`, with an `ip_` prefix.
+While the use of `TemplateText` and `TemplateChat` are preferred, most of the parameters passed during patch can also be specified inline when calling the `create()` method.
 
 ```python
-from libretto_openai import patch_openai
+from libretto_openai import patch_openai, LibrettoCreateParams
 patch_openai()
 
 completion = openai.ChatCompletion.create(
@@ -94,15 +93,17 @@ completion = openai.ChatCompletion.create(
     # Note we are passing the raw chat object here
     messages=[{"role": "user", "content": "Show me an emoji that matches the sport: soccer"}],
 
-    # call configuration
-    ip_api_key="...",
-    ip_prompt_template_name="sport-emoji",
+    libretto=LibrettoCreateParams(
+        # call configuration
+        api_key="...",
+        prompt_template_name="sport-emoji",
 
-    # Here the prompt and parameters is passed seperately
-    ip_template_params={"sport": "soccer"},
-    ip_template_chat=[
-        {"role": "user", "content": "Show me an emoji that matches the sport: {sport}"}
-    ],
+        # Here the prompt and parameters is passed seperately
+        template_params={"sport": "soccer"},
+        template_chat=[
+            {"role": "user", "content": "Show me an emoji that matches the sport: {sport}"}
+        ],
+    ),
 )
 ```
 
@@ -143,7 +144,7 @@ Please answer the following question: {question}.
 Please greet our newest forum member, {user}.
 Be nice and enthusiastic but not overwhelming.
 """,
-        additional_kwargs={"ip_prompt_template_name": "user-greeting"})
+        additional_kwargs={"libretto_prompt_template_name": "user-greeting"})
     llm = LLMChain(prompt=greeting_prompt, llm=OpenAI(openai_api_key=...))
     llm.run(user="Bob")
 ```
@@ -167,7 +168,7 @@ llm.run(question="What is the meaning of life?")
 greeting_prompt = PromptTemplate.from_template("""
 Please greet our newest forum member, {user}. Be nice and enthusiastic but not overwhelming.
 """,
-    additional_kwargs={"ip_prompt_template_name": "user-greeting"})
+    additional_kwargs={"libretto_prompt_template_name": "user-greeting"})
 llm = LLMChain(prompt=greeting_prompt, llm=OpenAI(openai_api_key=...))
 llm.run(user="Bob")
 
@@ -181,10 +182,10 @@ The following options may be passed as kwargs when patching:
 
 - `prompt_template_name`: A default name to associate with prompts. If provided,
   this is the name that will be associated with any `create` call that's made
-  **without** an `ip_prompt_template_name` parameter.
+  **without** a `libretto.prompt_template_name` parameter.
 - `allow_unnamed_prompts`: When set to `True`, every prompt will be sent to
   Libretto even if no prompt template name as been provided (either via the
-  `prompt_template_name` kwarg or via the `ip_prompt_template_name` parameter on
+  `prompt_template_name` kwarg or via the `libretto.prompt_template_name` parameter on
   `create`). `False` by default.
 - `redact_pii`: When `True`, certain personally identifying information (PII) will be attempted to be redacted before being sent to the Libretto backend. See the `pii` package for details about the types of PII being detected/redacted. `False` by default.
 
@@ -198,16 +199,17 @@ The following parameters are available in both the patched OpenAI client and the
 
 Parameters:
 
-- `chat_id` / `ip_chat_id`: The id of a "chat session" - if the chat API is
+- `chat_id`: The id of a "chat session" - if the chat API is
     being used in a conversational context, then the same chat id can be
     provided so that the events are grouped together, in order. If not provided,
     this will be left blank.
 
 OpenAI-only parameters:
 
-These parameters can only be passed to the `create()` methods of the patched OpenAI client.
+The following parameters can be specified in the `libretto` object that has been
+added to the base OpenAI `create` call interface:
 
-- `ip_template_chat`: The chat _template_ to record for chat requests. This is a list of dictionaries with the following keys:
+- `template_chat`: The chat _template_ to record for chat requests. This is a list of dictionaries with the following keys:
 
   - `role`: The role of the speaker. Either `"system"`, `"user"` or `"ai"`.
   - `content`: The content of the message. This can be a string or a template string with `{}` placeholders.
@@ -217,36 +219,45 @@ These parameters can only be passed to the `create()` methods of the patched Ope
   ```python
   completion = openai.ChatCompletion.create(
       ...,
-      ip_template_chat=[
-          {"role": "ai", "content": "Hello, I'm {system_name}!"},
-          {"role": "user", "content": "Hi {system_name}, I'm {user_name}!"}
-      ])
+      libretto=LibrettoCreateParams(
+          template_chat=[
+              {"role": "ai", "content": "Hello, I'm {system_name}!"},
+              {"role": "user", "content": "Hi {system_name}, I'm {user_name}!"}
+          ],
+      ),
+  )
   ```
 
   To represent an array of chat messages, use the artificial role `"chat_history"` with `content` set to the variable name in substitution format: `[{"role": "chat_history", "content": "{prev_messages}"}}]`
 
-- `ip_template_text`: The text template to record for completion requests. This is a string or a template string with `{}` placeholders.
+- `template_text`: The text template to record for completion requests. This is a string or a template string with `{}` placeholders.
 
   For example:
 
   ```python
   completion = openai.Completion.create(
       ...,
-      ip_template_text="Please welcome the user to {system_name}!")
+      libretto=LibrettoCreateParams(
+          template_text="Please welcome the user to {system_name}!",
+      ),
+  )
   ```
 
-- `ip_template_params`: The parameters to use for template strings. This is a dictionary of key-value pairs.
+- `template_params`: The parameters to use for template strings. This is a dictionary of key-value pairs.
 
   For example:
 
   ```python
   completion = openai.Completion.create(
       ...,
-      ip_template_text="Please welcome the user to {system_name}!"),
-      ip_template_params={"system_name": "Awesome Comics Incorporated"})
+      libretto=LibrettoCreateParams(
+          template_text="Please welcome the user to {system_name}!",
+          template_params={"system_name": "Awesome Comics Incorporated"},
+      ),
+  )
   ```
 
-- `ip_event_id`: A unique UUID for a specific call. If not provided, one will be generated. **Note**: In the langchain wrapper, this value is inferred from the chain `run_id`.
+- `event_id`: A unique UUID for a specific call. If not provided, one will be generated. **Note**: In the langchain wrapper, this value is inferred from the chain `run_id`.
 
   For example:
 
@@ -255,10 +266,13 @@ These parameters can only be passed to the `create()` methods of the patched Ope
 
   completion = openai.Completion.create(
       ...,
-      ip_event_id=uuid.uuid4())
+      libretto=LibrettoCreateParams(
+          event_id=uuid.uuid4(),
+      ),
+  )
   ```
 
-- `ip_parent_event_id`: The UUID of the parent event. All calls with the same parent id are grouped as a "Run Group". **Note**: In the langchain wrapper, this value is inferred from the chain `parent_run_id`.
+- `parent_event_id`: The UUID of the parent event. All calls with the same parent id are grouped as a "Run Group". **Note**: In the langchain wrapper, this value is inferred from the chain `parent_run_id`.
 
   For example:
 
@@ -269,12 +283,18 @@ These parameters can only be passed to the `create()` methods of the patched Ope
   # First call in the run group
   completion = openai.Completion.create(
       ...,
-      ip_parent_event_id=parent_id)
+      libretto=LibrettoCreateParams(
+          parent_event_id=parent_id,
+      ),
+  )
 
   # Another call in the same group
   completion = openai.Completion.create(
       ...,
-      ip_parent_event_id=parent_id)
+      libretto=LibrettoCreateParams(
+          parent_event_id=parent_id,
+      ),
+  )
   ```
 
 ## Sending Feedback
@@ -307,7 +327,7 @@ better_response = askUserForBetterResult(completion["choices"][0]["text"])
 # If the user provided a better answer, send feedback to Libretto
 if better_response !== completion["choices"][0]["text"]:
 # feedback key is automatically injected into OpenAI response object.
-feedback_key = completion.ip_feedback_key
+feedback_key = completion.libretto_feedback_key
 client.send_feedback(
     api_key=api_key,
     feedback_key=feedback_key,

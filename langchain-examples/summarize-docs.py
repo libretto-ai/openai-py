@@ -16,7 +16,8 @@ logger = logging.getLogger("libretto_openai")
 logger.setLevel(logging.INFO)
 
 with langchain_util.prompt_watch_tracing(
-    api_key="f1ed34de-5069-48f9-a513-6095c45e3a30", prompt_template_name=os.path.basename(__file__)
+    api_key=os.getenv("LIBRETTO_API_KEY"),
+    prompt_template_name=os.path.basename(__file__),
 ):
     text_splitter = RecursiveCharacterTextSplitter(
         # Set a really small chunk size, just to show.
@@ -37,3 +38,7 @@ with langchain_util.prompt_watch_tracing(
     print("Found ", len(texts), " paragraphs.")
     summary = chain(texts[0:4])
     print(summary["output_text"])
+
+    import time
+
+    time.sleep(5)
