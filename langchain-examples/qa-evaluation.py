@@ -13,20 +13,20 @@ from langchain.document_loaders import TextLoader
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.vectorstores import FAISS
-from openai import ChatCompletion
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-from im_openai import langchain as langchain_util
+from libretto_openai import langchain as langchain_util
 
 logging.basicConfig(stream=sys.stderr)
-logger = logging.getLogger("im_openai")
+logger = logging.getLogger("libretto_openai")
 logger.setLevel(logging.INFO)
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 with langchain_util.prompt_watch_tracing(
-    api_key="f1ed34de-5069-48f9-a513-6095c45e3a30", prompt_template_name=os.path.basename(__file__)
+    api_key=os.getenv("LIBRETTO_API_KEY"),
+    prompt_template_name=os.path.basename(__file__),
 ):
     loader = TextLoader(os.path.join(os.path.dirname(__file__), "state_of_the_union.txt"))
 

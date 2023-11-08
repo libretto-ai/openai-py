@@ -9,9 +9,9 @@ from presidio_analyzer.predefined_recognizers import (
     UrlRecognizer,
 )
 
-from im_openai.pii import Redactor
-from im_openai.pii.name_recognizer import NameRecognizer
-from im_openai.pii.street_address_recognizer import StreetAddressRecognizer
+from libretto_openai.pii import Redactor
+from libretto_openai.pii.name_recognizer import NameRecognizer
+from libretto_openai.pii.street_address_recognizer import StreetAddressRecognizer
 
 
 @pytest.mark.parametrize(

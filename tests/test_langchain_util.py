@@ -31,8 +31,8 @@ from langchain.schema import (
     SystemMessage,
 )
 
-from im_openai.langchain import callbacks as langchain_callbacks
-from im_openai.langchain import util as langchain_util
+from libretto_openai.langchain import callbacks as langchain_callbacks
+from libretto_openai.langchain import util as langchain_util
 
 api_key = "abc"
 prompt_template_name = "def"
@@ -47,7 +47,7 @@ def openai_api_key():
 
 @pytest.fixture()
 def mock_send_event():
-    with patch("im_openai.client.send_event", autospec=True) as mock:
+    with patch("libretto_openai.client.send_event", autospec=True) as mock:
         # This allows tests to be event-driven rather than calling time.sleep()
         mock.send_event_called = threading.Event()
         mock.send_event_called.clear()

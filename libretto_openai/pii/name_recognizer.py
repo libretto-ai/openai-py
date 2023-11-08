@@ -62,7 +62,7 @@ class NameRecognizer(LocalRecognizer):
 
         # Lazy load names.json to construct regex
         if not NameRecognizer._well_known_names_regex:
-            with importlib.resources.open_text("im_openai.pii.data", "names.json") as f:
+            with importlib.resources.open_text("libretto_openai.pii.data", "names.json") as f:
                 names = json.load(f)
                 NameRecognizer._well_known_names_regex = re.compile(
                     r"\b(\s*)(\s*(" + "|".join(names) + r"))+\b", re.I | re.M

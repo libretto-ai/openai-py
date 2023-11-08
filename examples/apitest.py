@@ -8,10 +8,10 @@ import openai
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-from im_openai import patch_openai, TemplateChat, TemplateString
+from libretto_openai import patch_openai, TemplateChat, TemplateString, LibrettoCreateParams
 
 
-imlogger = logging.getLogger("im_openai")
+imlogger = logging.getLogger("libretto_openai")
 imlogger.setLevel(logging.DEBUG)
 imlogger.addHandler(logging.StreamHandler())
 
@@ -28,7 +28,9 @@ def main():
             [{"role": "user", "content": template}],
             params,
         ),
-        ip_prompt_template_name="test-from-apitest-chat",
+        libretto=LibrettoCreateParams(
+            prompt_template_name="test-from-apitest-chat",
+        ),
     )
     print(chat_completion)
 
@@ -36,7 +38,9 @@ def main():
     completion = openai.Completion.create(
         model="text-davinci-003",
         prompt=TemplateString(template, params),
-        ip_prompt_template_name="test-from-apitest-completion",
+        libretto=LibrettoCreateParams(
+            prompt_template_name="test-from-apitest-completion",
+        ),
     )
     print(completion)
 
@@ -48,7 +52,9 @@ def main():
             [{"role": "user", "content": template}],
             params,
         ),
-        ip_prompt_template_name="test-from-apitest-chat",
+        libretto=LibrettoCreateParams(
+            prompt_template_name="test-from-apitest-chat",
+        ),
     )
     for chat_result in chat_completion:
         delta = cast(Dict, chat_result)

@@ -1,1 +1,1 @@
-"""Unit test package for im_openai."""
+"""Unit test package for libretto_openai."""

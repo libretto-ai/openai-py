@@ -16,7 +16,7 @@ from langchain.prompts import BasePromptTemplate
 from langchain.prompts.chat import BaseMessagePromptTemplate
 from langchain.schema import AgentAction, AgentFinish, BaseMessage, LLMResult
 
-from im_openai import client
+from libretto_openai import client
 
 from . import util
 
@@ -102,14 +102,14 @@ class PromptWatchCallbacks(BaseCallbackHandler):
         """Initialize the callback handler
 
         Args:
-            api_key (str): The Imaginary Programming API key
-            project_key (str): The Imaginary Programming project key
-            prompt_template_name (str): The Imaginary Programming API name
+            api_key (str): The Libretto API key.
+            project_key (str): The Libretto project key.
+            prompt_template_name (str): A name to uniquely identify this prompt in Libretto.
             template_text (Optional[str], optional): The template to use for completion events. Defaults to None.
             template_chat (Optional[List[Union[BaseMessagePromptTemplate, BaseMessage]]], optional): The template to use for chat events. Defaults to None.
         """
-        self.project_key = project_key or os.environ.get("PROMPT_PROJECT_KEY", None)
-        self.api_key = api_key or os.environ.get("PROMPT_API_KEY", "")
+        self.project_key = project_key or os.environ.get("LIBRETTO_PROJECT_KEY", None)
+        self.api_key = api_key or os.environ.get("LIBRETTO_API_KEY", "")
         if not self.api_key:
             raise ValueError("api_key must be provided")
         self.valid_namespaces = valid_namespaces
@@ -187,7 +187,7 @@ class PromptWatchCallbacks(BaseCallbackHandler):
             # User might have overridden the prompt_template_name
             lc_kwargs = cast(SerializedConstructor, prompt_template.to_json())["kwargs"]
             prompt_template_name: str | None = lc_kwargs.get("additional_kwargs", {}).get(
-                "ip_prompt_template_name"
+                "libretto_prompt_template_name"
             )
             self.runs[run_id]["api_name"] = prompt_template_name
         elif prompt_template is None:

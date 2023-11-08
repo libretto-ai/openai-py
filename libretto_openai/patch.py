@@ -4,7 +4,7 @@ import os
 import uuid
 from contextlib import contextmanager
 from itertools import tee
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, cast
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, TypedDict, cast
 
 import openai
 
@@ -12,7 +12,53 @@ from .client import event_session
 from .template import TemplateChat, TemplateString
 from .pii import Redactor
 
+
 logger = logging.getLogger(__name__)
+
+
+class LibrettoCreateParamDict(TypedDict):
+    project_key: str | None
+    api_key: str | None
+    prompt_template_name: str | None
+    api_name: str | None
+    event_id: str | None
+    template_text: str | None
+    template_chat: List | None
+    template_params: Any | None
+    chat_id: str | None
+    parent_event_id: str | None
+    feedback_key: str | None
+
+
+# This is a helper function that allows for instantiating a LibrettoCreateParamDict
+# without the need for specifying every key, which is required by TypedDict in
+# Python < 3.11 (NotRequired was added to address this).
+def LibrettoCreateParams(  # pylint: disable=invalid-name
+    project_key: str | None = None,
+    api_key: str | None = None,
+    prompt_template_name: str | None = None,
+    api_name: str | None = None,
+    event_id: str | None = None,
+    template_text: str | None = None,
+    template_chat: List | None = None,
+    template_params: Any | None = None,
+    chat_id: str | None = None,
+    parent_event_id: str | None = None,
+    feedback_key: str | None = None,
+):
+    return LibrettoCreateParamDict(
+        project_key=project_key,
+        api_key=api_key,
+        prompt_template_name=prompt_template_name,
+        api_name=api_name,
+        event_id=event_id,
+        template_text=template_text,
+        template_chat=template_chat,
+        template_params=template_params,
+        chat_id=chat_id,
+        parent_event_id=parent_event_id,
+        feedback_key=feedback_key,
+    )
 
 
 def patch_openai_class(
@@ -48,77 +94,73 @@ def patch_openai_class(
         _cls,
         *args,
         stream: bool = False,
-        ip_project_key=None,
-        ip_api_key=None,
-        ip_prompt_template_name: str | None = None,
-        ip_api_name: str | None = None,
-        ip_event_id: str | None = None,
-        ip_template_text: str | None = None,
-        ip_template_chat: List | None = None,
-        ip_template_params=None,
-        ip_chat_id: str | None = None,
-        ip_parent_event_id: str | None = None,
-        ip_feedback_key: str | None = None,
+        libretto: LibrettoCreateParamDict | None = None,
         **kwargs,
     ):
-        ip_prompt_template_name = (
-            ip_prompt_template_name
+        if libretto is None:
+            libretto = LibrettoCreateParams()
+        else:
+            # Don't mutate the input dict
+            libretto = libretto.copy()
+
+        libretto["prompt_template_name"] = (
+            libretto["prompt_template_name"]
             or prompt_template_name
-            or os.environ.get("PROMPT_TEMPLATE_NAME")
-            or ip_api_name  # legacy
+            or os.environ.get("LIBRETTO_TEMPLATE_NAME")
+            or libretto["api_name"]  # legacy
         )
-        ip_api_key = ip_api_key or api_key or os.environ.get("PROMPT_API_KEY")
-        ip_chat_id = ip_chat_id or chat_id or os.environ.get("PROMPT_CHAT_ID")
+        libretto["api_key"] = libretto["api_key"] or api_key or os.environ.get("LIBRETTO_API_KEY")
+        libretto["chat_id"] = libretto["chat_id"] or chat_id or os.environ.get("LIBRETTO_CHAT_ID")
+        libretto["project_key"] = libretto["project_key"] or os.environ.get("LIBRETTO_PROJECT_KEY")
+        libretto["feedback_key"] = libretto["feedback_key"] or str(uuid.uuid4())
 
-        if ip_project_key is None:
-            ip_project_key = os.environ.get("PROMPT_PROJECT_KEY")
-        if ip_project_key is None and ip_api_key is None:
-            return oldcreate(*args, **kwargs, stream=stream)
-        if ip_prompt_template_name is None and not allow_unnamed_prompts:
+        if libretto["project_key"] is None and libretto["api_key"] is None:
             return oldcreate(*args, **kwargs, stream=stream)
 
-        feedback_key = ip_feedback_key or str(uuid.uuid4())
+        if libretto["prompt_template_name"] is None and not allow_unnamed_prompts:
+            return oldcreate(*args, **kwargs, stream=stream)
 
         model_params = kwargs.copy()
         model_params["modelProvider"] = "openai"
+
         if stream is not None:
             model_params["stream"] = stream
+
+        if libretto["template_params"] is None:
+            libretto["template_params"] = {}
+
         if "messages" in kwargs:
             messages: List[Any] = kwargs["messages"]
             del model_params["messages"]
             model_params["modelType"] = "chat"
-
-            if ip_template_params is None:
-                ip_template_params = {}
-
             if hasattr(messages, "template"):
-                ip_template_chat = cast(TemplateChat, messages).template
+                libretto["template_chat"] = cast(TemplateChat, messages).template
             if hasattr(messages, "params"):
-                ip_template_params.update(cast(TemplateChat, messages).params)
+                libretto["template_params"].update(cast(TemplateChat, messages).params)
 
         if "prompt" in kwargs:
             prompt: str = model_params["prompt"]
+            if not isinstance(prompt, str):
+                raise Exception("Unexpected prompt: want str")
             del model_params["prompt"]
             model_params["modelType"] = "completion"
             if hasattr(prompt, "template"):
-                ip_template_text = cast(TemplateString, prompt).template
-            if ip_template_params is None:
-                ip_template_params = {}
+                libretto["template_text"] = cast(TemplateString, prompt).template
             if hasattr(prompt, "params"):
-                ip_template_params.update(cast(TemplateString, prompt).params)
+                libretto["template_params"].update(cast(TemplateString, prompt).params)
 
-        if ip_template_text is None and ip_template_chat is None:
-            ip_template = get_prompt_template(*args, **kwargs)
-            if isinstance(ip_template, str):
-                ip_template_text = ip_template
-            elif isinstance(ip_template, list):
-                ip_template_chat = ip_template
+        if libretto["template_text"] is None and libretto["template_chat"] is None:
+            template = get_prompt_template(*args, **kwargs)
+            if isinstance(template, str):
+                libretto["template_text"] = template
+            elif isinstance(template, list):
+                libretto["template_chat"] = template
 
         # Redact PII from template parameters if configured to do so
-        if pii_redactor and ip_template_params:
-            for name, param in ip_template_params.items():
+        if pii_redactor and libretto["template_params"]:
+            for name, param in libretto["template_params"].items():
                 try:
-                    ip_template_params[name] = pii_redactor.redact(param)
+                    libretto["template_params"][name] = pii_redactor.redact(param)
                 except Exception as e:
                     logger.warning(
                         "Failed to redact PII from parameter: key=%s, value=%s, error=%s",
@@ -128,24 +170,24 @@ def patch_openai_class(
                     )
 
         with event_session(
-            project_key=ip_project_key,
-            api_key=ip_api_key,
-            prompt_template_name=ip_prompt_template_name,
+            project_key=libretto["project_key"],
+            api_key=libretto["api_key"],
+            prompt_template_name=libretto["prompt_template_name"],
             model_params=model_params,
-            prompt_template_text=ip_template_text,
-            prompt_template_chat=ip_template_chat,
-            chat_id=ip_chat_id,
-            prompt_template_params=ip_template_params,
-            prompt_event_id=ip_event_id,
-            parent_event_id=ip_parent_event_id,
-            feedback_key=feedback_key,
+            prompt_template_text=libretto["template_text"],
+            prompt_template_chat=libretto["template_chat"],
+            chat_id=libretto["chat_id"],
+            prompt_template_params=libretto["template_params"],
+            prompt_event_id=libretto["event_id"],
+            parent_event_id=libretto["parent_event_id"],
+            feedback_key=libretto["feedback_key"],
         ) as complete_event:
             response = oldcreate(*args, **kwargs, stream=stream)
             (return_response, event_response) = get_result(response, stream)
 
             # Can only do this for non-streamed responses right now
             if isinstance(return_response, dict):
-                return_response["ip_feedback_key"] = feedback_key  # type: ignore
+                return_response["libretto_feedback_key"] = libretto["feedback_key"]  # type: ignore
 
             # Redact PII before recording the event
             if pii_redactor and event_response:
@@ -249,7 +291,7 @@ def patch_openai(
 
     Returns a function which may be called to "unpatch" the APIs."""
 
-    def get_completion_prompt(prompt=None):
+    def get_completion_prompt(*_args, prompt=None, **_kwargs):
         return prompt
 
     unpatch_completion = patch_openai_class(
@@ -263,7 +305,7 @@ def patch_openai(
         redact_pii=redact_pii,
     )
 
-    def get_chat_prompt(messages=None):
+    def get_chat_prompt(*_args, messages=None, **_kwargs):
         # TODO: What should we be sending? For now we'll just send the last message
         prompt_text = messages
         return prompt_text

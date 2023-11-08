@@ -41,4 +41,4 @@ jobs:
               run: poetry run pytest -v
 
             - name: Run pylint
-              run: poetry run pylint --errors-only im_openai
+              run: poetry run pylint --errors-only libretto_openai
