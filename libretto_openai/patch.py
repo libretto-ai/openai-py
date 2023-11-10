@@ -4,9 +4,15 @@ import os
 import uuid
 from contextlib import contextmanager
 from itertools import tee
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, TypedDict, cast
+import types
+from typing import Any, Callable, List, Optional, Tuple, TypedDict, cast
 
 import openai
+from openai import Stream
+from openai.types.completion import Completion
+from openai.types.chat import ChatCompletion, ChatCompletionChunk, ChatCompletionMessage
+from openai.resources import Completions
+from openai.resources.chat import Completions as ChatCompletions
 
 from .client import event_session
 from .template import TemplateChat, TemplateString
@@ -61,12 +67,15 @@ def LibrettoCreateParams(  # pylint: disable=invalid-name
     )
 
 
-def patch_openai_class(
-    cls,
+def _patch_openai_completions(
+    cls: Completions | ChatCompletions,
     get_prompt_template: Callable,
     get_result: Callable[
-        [Dict[str, Any] | Iterable[Dict[str, Any]], bool],
-        Tuple[Dict[str, Any] | Iterable[Dict[str, Any]], Optional[str]],
+        [Completion | Stream[Completion] | ChatCompletion | Stream[ChatCompletionChunk], bool],
+        Tuple[
+            Completion | Stream[Completion] | ChatCompletion | Stream[ChatCompletionChunk],
+            Optional[str],
+        ],
     ],
     prompt_template_name: Optional[str] = None,
     chat_id: Optional[str] = None,
@@ -91,7 +100,7 @@ def patch_openai_class(
     pii_redactor = Redactor() if redact_pii else None
 
     def local_create(
-        _cls,
+        _self,
         *args,
         stream: bool = False,
         libretto: LibrettoCreateParamDict | None = None,
@@ -203,84 +212,116 @@ def patch_openai_class(
 
         return return_response
 
-    oldacreate = cls.acreate
-
-    async def local_create_async(*args, **kwargs):
-        # TODO: record the request and response with the template
-        return await oldacreate(*args, **kwargs)
-
-    setattr(
-        cls,
-        "create",
-        classmethod(local_create),
-    )
-    setattr(
-        cls,
-        "acreate",
-        classmethod(local_create_async),
-    )
+    setattr(cls, "create", types.MethodType(local_create, cls))
 
     def unpatch():
         setattr(cls, "create", oldcreate)
-        setattr(cls, "acreate", oldacreate)
 
     return unpatch
 
 
-def list_extract(response: Dict[str, Any]):
-    return response, response["choices"][0]["text"]
+def list_extract(response: Completion):
+    return response, response.choices[0].text
 
 
-def stream_extract(responses: Iterable[Dict]) -> Tuple[Iterable[Dict], str]:
+def stream_extract(responses: Stream[Completion]) -> Tuple[Stream[Completion], str]:
     (original_response, consumable_response) = tee(responses)
     accumulated = []
     for response in consumable_response:
-        accumulated.append(response["choices"][0]["text"])
+        accumulated.append(response.choices[0].text)
     return (original_response, "".join(accumulated))
 
 
-def get_completion_result(response: Dict[str, Any] | Iterable[Dict[str, Any]], _stream: bool):
-    # No streaming support in non-chat yet
-    # if stream:
-    #     return stream_extract(response)
-    if not isinstance(response, dict):
-        raise ValueError("Streaming is not supported for single responses")
-    return list_extract(cast(dict, response))
+def get_completion_result(response: Completion | Stream[Completion], stream: bool):
+    if isinstance(response, Completion):
+        if stream:
+            raise ValueError("Streaming is not supported for single responses")
+        return list_extract(response)
+    return stream_extract(response)
 
 
 def stream_extract_chat(
-    responses: Iterable[Dict[str, Any]]
-) -> Tuple[Iterable[Dict[str, Any]], str]:
+    responses: Stream[ChatCompletionChunk],
+) -> Tuple[Stream[ChatCompletionChunk], str]:
     (original_response, consumable_response) = tee(responses)
     accumulated = []
     for response in consumable_response:
-        if "content" in response["choices"][0]["delta"]:
-            accumulated.append(response["choices"][0]["delta"]["content"])
-        if "function_call" in response["choices"][0]["delta"]:
+        if response.choices[0].delta.content is not None:
+            accumulated.append(response.choices[0].delta.content)
+        if response.choices[0].delta.function_call is not None:
             logger.warning("Streaming a function_call response is not supported yet.")
     return (original_response, "".join(accumulated))
 
 
-def list_extract_chat(response):
-    content = get_message_content(response["choices"][0]["message"])
+def list_extract_chat(response: ChatCompletion):
+    content = get_message_content(response.choices[0].message)
     return response, content
 
 
-def get_chat_result(response: Iterable[Dict[str, Any]] | Dict[str, Any], stream: bool):
-    if stream:
-        if isinstance(response, dict):
+def get_chat_result(response: Stream[ChatCompletionChunk] | ChatCompletion, stream: bool):
+    if isinstance(response, ChatCompletion):
+        if stream:
             raise ValueError("Streaming is not supported for single responses")
-        return stream_extract_chat(response)
-    return list_extract_chat(response)
+        return list_extract_chat(response)
+    return stream_extract_chat(response)
 
 
-def get_message_content(message: Dict[str, Any]):
-    if "function_call" in message:
-        return json.dumps({"function_call": message["function_call"]})
-    return message.get("content")
+def get_message_content(message: ChatCompletionMessage):
+    if message.function_call:
+        return json.dumps({"function_call": message.function_call})
+    return message.content
+
+
+# def patch_openai(
+#     api_key: Optional[str] = None,
+#     prompt_template_name: Optional[str] = None,
+#     chat_id: Optional[str] = None,
+#     allow_unnamed_prompts: bool = False,
+#     redact_pii: bool = False,
+# ):
+#     """Patch openai APIs to add logging capabilities.
+
+#     Returns a function which may be called to "unpatch" the APIs."""
+
+#     def get_completion_prompt(*_args, prompt=None, **_kwargs):
+#         return prompt
+
+#     unpatch_completion = patch_openai_class(
+#         openai.Completion,
+#         get_completion_prompt,
+#         get_completion_result,
+#         api_key=api_key,
+#         prompt_template_name=prompt_template_name,
+#         chat_id=chat_id,
+#         allow_unnamed_prompts=allow_unnamed_prompts,
+#         redact_pii=redact_pii,
+#     )
+
+#     def get_chat_prompt(*_args, messages=None, **_kwargs):
+#         # TODO: What should we be sending? For now we'll just send the last message
+#         prompt_text = messages
+#         return prompt_text
+
+#     unpatch_chat = patch_openai_class(
+#         openai.ChatCompletion,
+#         get_chat_prompt,
+#         get_chat_result,
+#         api_key=api_key,
+#         prompt_template_name=prompt_template_name,
+#         chat_id=chat_id,
+#         allow_unnamed_prompts=allow_unnamed_prompts,
+#         redact_pii=redact_pii,
+#     )
+
+#     def unpatch():
+#         unpatch_chat()
+#         unpatch_completion()
+
+#     return unpatch
 
 
 def patch_openai(
+    client: openai.Client,
     api_key: Optional[str] = None,
     prompt_template_name: Optional[str] = None,
     chat_id: Optional[str] = None,
@@ -294,8 +335,8 @@ def patch_openai(
     def get_completion_prompt(*_args, prompt=None, **_kwargs):
         return prompt
 
-    unpatch_completion = patch_openai_class(
-        openai.Completion,
+    unpatch_completion = _patch_openai_completions(
+        client.completions,
         get_completion_prompt,
         get_completion_result,
         api_key=api_key,
@@ -310,8 +351,8 @@ def patch_openai(
         prompt_text = messages
         return prompt_text
 
-    unpatch_chat = patch_openai_class(
-        openai.ChatCompletion,
+    unpatch_chat = _patch_openai_completions(
+        client.chat.completions,
         get_chat_prompt,
         get_chat_result,
         api_key=api_key,
