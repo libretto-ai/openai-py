@@ -5,10 +5,9 @@ import uuid
 from contextlib import contextmanager
 from itertools import tee
 import types
-from typing import Any, Callable, List, Optional, Tuple, TypedDict, cast
+from typing import Any, Callable, Iterable, List, Optional, Tuple, TypedDict, cast
 
 import openai
-from openai import Stream
 from openai.types.completion import Completion
 from openai.types.chat import ChatCompletion, ChatCompletionChunk, ChatCompletionMessage
 from openai.resources import Completions
@@ -70,13 +69,6 @@ def LibrettoCreateParams(  # pylint: disable=invalid-name
 def _patch_openai_completions(
     cls: Completions | ChatCompletions,
     get_prompt_template: Callable,
-    get_result: Callable[
-        [Completion | Stream[Completion] | ChatCompletion | Stream[ChatCompletionChunk], bool],
-        Tuple[
-            Completion | Stream[Completion] | ChatCompletion | Stream[ChatCompletionChunk],
-            Optional[str],
-        ],
-    ],
     prompt_template_name: Optional[str] = None,
     chat_id: Optional[str] = None,
     api_key: Optional[str] = None,
@@ -192,11 +184,24 @@ def _patch_openai_completions(
             feedback_key=libretto["feedback_key"],
         ) as complete_event:
             response = oldcreate(*args, **kwargs, stream=stream)
-            (return_response, event_response) = get_result(response, stream)
+
+            return_response, event_response = (
+                (
+                    get_completion_result(cast(Completion, response), False)
+                    if not stream
+                    else get_completion_result(cast(Iterable[Completion], response), True)
+                )
+                if isinstance(cls, Completions)
+                else (
+                    get_chat_result(cast(ChatCompletion, response), False)
+                    if not stream
+                    else get_chat_result(cast(Iterable[ChatCompletionChunk], response), True)
+                )
+            )
 
             # Can only do this for non-streamed responses right now
-            if isinstance(return_response, dict):
-                return_response["libretto_feedback_key"] = libretto["feedback_key"]  # type: ignore
+            if not stream:
+                setattr(return_response, "libretto_feedback_key", libretto["feedback_key"])
 
             # Redact PII before recording the event
             if pii_redactor and event_response:
@@ -224,7 +229,7 @@ def list_extract(response: Completion):
     return response, response.choices[0].text
 
 
-def stream_extract(responses: Stream[Completion]) -> Tuple[Stream[Completion], str]:
+def stream_extract(responses: Iterable[Completion]) -> Tuple[Iterable[Completion], str]:
     (original_response, consumable_response) = tee(responses)
     accumulated = []
     for response in consumable_response:
@@ -232,7 +237,7 @@ def stream_extract(responses: Stream[Completion]) -> Tuple[Stream[Completion], s
     return (original_response, "".join(accumulated))
 
 
-def get_completion_result(response: Completion | Stream[Completion], stream: bool):
+def get_completion_result(response: Completion | Iterable[Completion], stream: bool):
     if isinstance(response, Completion):
         if stream:
             raise ValueError("Streaming is not supported for single responses")
@@ -241,8 +246,8 @@ def get_completion_result(response: Completion | Stream[Completion], stream: boo
 
 
 def stream_extract_chat(
-    responses: Stream[ChatCompletionChunk],
-) -> Tuple[Stream[ChatCompletionChunk], str]:
+    responses: Iterable[ChatCompletionChunk],
+) -> Tuple[Iterable[ChatCompletionChunk], str]:
     (original_response, consumable_response) = tee(responses)
     accumulated = []
     for response in consumable_response:
@@ -258,7 +263,7 @@ def list_extract_chat(response: ChatCompletion):
     return response, content
 
 
-def get_chat_result(response: Stream[ChatCompletionChunk] | ChatCompletion, stream: bool):
+def get_chat_result(response: Iterable[ChatCompletionChunk] | ChatCompletion, stream: bool):
     if isinstance(response, ChatCompletion):
         if stream:
             raise ValueError("Streaming is not supported for single responses")
@@ -270,54 +275,6 @@ def get_message_content(message: ChatCompletionMessage):
     if message.function_call:
         return json.dumps({"function_call": message.function_call})
     return message.content
-
-
-# def patch_openai(
-#     api_key: Optional[str] = None,
-#     prompt_template_name: Optional[str] = None,
-#     chat_id: Optional[str] = None,
-#     allow_unnamed_prompts: bool = False,
-#     redact_pii: bool = False,
-# ):
-#     """Patch openai APIs to add logging capabilities.
-
-#     Returns a function which may be called to "unpatch" the APIs."""
-
-#     def get_completion_prompt(*_args, prompt=None, **_kwargs):
-#         return prompt
-
-#     unpatch_completion = patch_openai_class(
-#         openai.Completion,
-#         get_completion_prompt,
-#         get_completion_result,
-#         api_key=api_key,
-#         prompt_template_name=prompt_template_name,
-#         chat_id=chat_id,
-#         allow_unnamed_prompts=allow_unnamed_prompts,
-#         redact_pii=redact_pii,
-#     )
-
-#     def get_chat_prompt(*_args, messages=None, **_kwargs):
-#         # TODO: What should we be sending? For now we'll just send the last message
-#         prompt_text = messages
-#         return prompt_text
-
-#     unpatch_chat = patch_openai_class(
-#         openai.ChatCompletion,
-#         get_chat_prompt,
-#         get_chat_result,
-#         api_key=api_key,
-#         prompt_template_name=prompt_template_name,
-#         chat_id=chat_id,
-#         allow_unnamed_prompts=allow_unnamed_prompts,
-#         redact_pii=redact_pii,
-#     )
-
-#     def unpatch():
-#         unpatch_chat()
-#         unpatch_completion()
-
-#     return unpatch
 
 
 def patch_openai(
@@ -338,7 +295,6 @@ def patch_openai(
     unpatch_completion = _patch_openai_completions(
         client.completions,
         get_completion_prompt,
-        get_completion_result,
         api_key=api_key,
         prompt_template_name=prompt_template_name,
         chat_id=chat_id,
@@ -354,7 +310,6 @@ def patch_openai(
     unpatch_chat = _patch_openai_completions(
         client.chat.completions,
         get_chat_prompt,
-        get_chat_result,
         api_key=api_key,
         prompt_template_name=prompt_template_name,
         chat_id=chat_id,
@@ -371,6 +326,7 @@ def patch_openai(
 
 @contextmanager
 def patched_openai(
+    client: openai.Client,
     api_key: Optional[str] = None,
     prompt_template_name: Optional[str] = None,
     chat_id: Optional[str] = None,
@@ -385,6 +341,7 @@ def patched_openai(
     ```
     """
     unpatch = patch_openai(
+        client,
         api_key=api_key,
         prompt_template_name=prompt_template_name,
         chat_id=chat_id,
