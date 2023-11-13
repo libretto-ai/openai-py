@@ -1449,12 +1449,12 @@ transformers = ["spacy-huggingface-pipelines"]
 
 [[package]]
 name = "presidio-anonymizer"
-version = "2.2.350"
+version = "2.2.351"
 description = "Persidio Anonymizer package - replaces analyzed text with desired values."
 optional = false
 python-versions = ">=3.5"
 files = [
-    {file = "presidio_anonymizer-2.2.350-py3-none-any.whl", hash = "sha256:62dfde94a098747c5fa54f3447dcca51d8eede7f8c6cff7c8805ca1a517bb6ea"},
+    {file = "presidio_anonymizer-2.2.351-py3-none-any.whl", hash = "sha256:a898c38afcf01ac21aa7558702b8f22e378625854574df0b277c553bb3164f50"},
 ]
 
 [package.dependencies]
