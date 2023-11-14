@@ -1,28 +1,46 @@
 import time
 
-from libretto_openai.libretto_client import LibrettoOpenAIClient
-from libretto_openai import TemplateString, LibrettoCreateParams
+from libretto_openai.libretto_client import LibrettoOpenAIClient, LibrettoConfig
+from libretto_openai import TemplateChat, TemplateString, LibrettoCreateParams
 
 
 def main():
-    client = LibrettoOpenAIClient()
+    client = LibrettoOpenAIClient(
+        libretto=LibrettoConfig(
+            redact_pii=True,
+        )
+    )
 
     template = "Send a greeting to our new user named {name}"
-    params = {"name": "Alec"}
+    params = {"name": "Jason"}
 
-    print("TESTING COMPLETION API")
-    completion = client.completions.create(
-        model="text-davinci-003",
-        prompt=TemplateString(template, params),
-        libretto=LibrettoCreateParams(
-            prompt_template_name="test-from-apitest-completion",
+    # print("TESTING COMPLETION API")
+    # completion = client.completions.create(
+    #     model="text-davinci-003",
+    #     prompt=TemplateString(template, params),
+    #     libretto=LibrettoCreateParams(
+    #         prompt_template_name="test-from-apitest-completion",
+    #     ),
+    # )
+    # print(completion)
+
+    print("TESTING CHAT COMPLETION API")
+    chat_completion = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=TemplateChat(
+            [{"role": "user", "content": template}],
+            params,
         ),
-        stream=True,
+        libretto=LibrettoCreateParams(
+            prompt_template_name="test-from-apitest-chat",
+        ),
+        # stream=True,
     )
-    for c in completion:
-        print(c)
+    # for chunk in chat_completion:
+    #     print(chunk)
+    print(chat_completion)
 
 
 if __name__ == "__main__":
     main()
-    time.sleep(3)
+    time.sleep(5)
