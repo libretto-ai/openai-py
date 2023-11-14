@@ -4,7 +4,19 @@ import logging
 import os
 import uuid
 
-from typing import Dict, Iterable, List, NamedTuple, Tuple, Union, Optional, cast, overload
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    NamedTuple,
+    Tuple,
+    Union,
+    Optional,
+    cast,
+    overload,
+)
 from typing_extensions import Literal
 
 import httpx
@@ -83,7 +95,7 @@ class LibrettoCompletionsMixin:
 
         return libretto
 
-    def get_model_params(self, model_type: str, **original_kwargs):
+    def build_model_params(self, model_type: str, **original_kwargs) -> Dict[str, Any]:
         model_params = {
             "modelProvider": "openai",
             "modelType": model_type,
@@ -94,18 +106,22 @@ class LibrettoCompletionsMixin:
             model_params[k] = v
         return model_params
 
-    def redact_template_params(self, template_params):
-        if self.pii_redactor and template_params:
-            for name, param in template_params.items():
-                try:
-                    template_params[name] = self.pii_redactor.redact(param)
-                except Exception as e:
-                    logger.warning(
-                        "Failed to redact PII from parameter: key=%s, value=%s, error=%s",
-                        name,
-                        param,
-                        e,
-                    )
+    def redact_template_params(self, template_params) -> None:
+        if not template_params:
+            return
+        if not self.pii_redactor:
+            return
+
+        for name, param in template_params.items():
+            try:
+                template_params[name] = self.pii_redactor.redact(param)
+            except Exception as e:
+                logger.warning(
+                    "Failed to redact PII from parameter: key=%s, value=%s, error=%s",
+                    name,
+                    param,
+                    e,
+                )
 
     def redact_response(self, event_response: str | None) -> str:
         if not event_response:
@@ -121,6 +137,42 @@ class LibrettoCompletionsMixin:
                 e,
             )
             return event_response
+
+    def run(
+        self,
+        libretto: LibrettoCreateParamDict,
+        model_params: Dict[str, Any],
+        get_result: Callable,
+        stream: bool,
+    ):
+        # Redact PII from template parameters if configured to do so
+        self.redact_template_params(libretto["template_params"])
+
+        with event_session(
+            project_key=libretto["project_key"],
+            api_key=libretto["api_key"],
+            prompt_template_name=libretto["prompt_template_name"],
+            model_params=model_params,
+            prompt_template_text=libretto["template_text"],
+            prompt_template_chat=libretto["template_chat"],
+            chat_id=libretto["chat_id"],
+            prompt_template_params=libretto["template_params"],
+            prompt_event_id=libretto["event_id"],
+            parent_event_id=libretto["parent_event_id"],
+            feedback_key=libretto["feedback_key"],
+        ) as complete_event:
+            return_response, event_response = get_result()
+
+            # Can only do this for non-streamed responses right now
+            if not stream:
+                setattr(return_response, "libretto_feedback_key", libretto["feedback_key"])
+
+            # Redact PII before recording the event
+            event_response = self.redact_response(event_response)
+
+            complete_event(event_response)
+
+            return return_response
 
 
 class LibrettoCompletions(resources.Completions, LibrettoCompletionsMixin):
@@ -688,11 +740,10 @@ class LibrettoCompletions(resources.Completions, LibrettoCompletionsMixin):
         if not self.should_submit(libretto):
             return super().create(*args, **original_kwargs)
 
-        # Needed?
         if not isinstance(prompt, str):
             raise Exception("Unexpected prompt: want str")
 
-        model_params = self.get_model_params("completion", **original_kwargs)
+        model_params = self.build_model_params("completion", **original_kwargs)
         del model_params["prompt"]
 
         if isinstance(prompt, TemplateString):
@@ -701,37 +752,13 @@ class LibrettoCompletions(resources.Completions, LibrettoCompletionsMixin):
                 libretto["template_params"] = {}
             libretto["template_params"].update(prompt.params)
         else:
-            libretto["template_text"] = prompt
+            libretto["template_text"] = prompt or ""
 
-        # Redact PII from template parameters if configured to do so
-        self.redact_template_params(libretto["template_params"])
+        def make_api_call():
+            response = super(LibrettoCompletions, self).create(*args, **original_kwargs)
+            return self.get_result(response)
 
-        with event_session(
-            project_key=libretto["project_key"],
-            api_key=libretto["api_key"],
-            prompt_template_name=libretto["prompt_template_name"],
-            model_params=model_params,
-            prompt_template_text=libretto["template_text"],
-            prompt_template_chat=libretto["template_chat"],
-            chat_id=libretto["chat_id"],
-            prompt_template_params=libretto["template_params"],
-            prompt_event_id=libretto["event_id"],
-            parent_event_id=libretto["parent_event_id"],
-            feedback_key=libretto["feedback_key"],
-        ) as complete_event:
-            response = super().create(*args, **original_kwargs)
-            return_response, event_response = self.get_result(response)
-
-            # Can only do this for non-streamed responses right now
-            if not stream:
-                setattr(return_response, "libretto_feedback_key", libretto["feedback_key"])
-
-            # Redact PII before recording the event
-            event_response = self.redact_response(event_response)
-
-            complete_event(event_response)
-
-            return return_response
+        return self.run(libretto, model_params, make_api_call, stream=(stream or False))
 
     def get_result(self, response: Completion | Iterable[Completion]):
         if isinstance(response, Completion):
@@ -1328,7 +1355,7 @@ class LibrettoChatCompletions(resources.chat.Completions, LibrettoCompletionsMix
         if not self.should_submit(libretto):
             return super().create(*args, **original_kwargs)
 
-        model_params = self.get_model_params("chat", **original_kwargs)
+        model_params = self.build_model_params("chat", **original_kwargs)
         del model_params["messages"]
 
         if hasattr(messages, "template"):
@@ -1338,35 +1365,11 @@ class LibrettoChatCompletions(resources.chat.Completions, LibrettoCompletionsMix
                 libretto["template_params"] = {}
             libretto["template_params"].update(cast(TemplateChat, messages).params)
 
-        # Redact PII from template parameters if configured to do so
-        self.redact_template_params(libretto["template_params"])
+        def make_api_call():
+            response = super(LibrettoChatCompletions, self).create(*args, **original_kwargs)
+            return self.get_result(response)
 
-        with event_session(
-            project_key=libretto["project_key"],
-            api_key=libretto["api_key"],
-            prompt_template_name=libretto["prompt_template_name"],
-            model_params=model_params,
-            prompt_template_text=libretto["template_text"],
-            prompt_template_chat=libretto["template_chat"],
-            chat_id=libretto["chat_id"],
-            prompt_template_params=libretto["template_params"],
-            prompt_event_id=libretto["event_id"],
-            parent_event_id=libretto["parent_event_id"],
-            feedback_key=libretto["feedback_key"],
-        ) as complete_event:
-            response = super().create(*args, **original_kwargs)
-            return_response, event_response = self.get_result(response)
-
-            # Can only do this for non-streamed responses right now
-            if not stream:
-                setattr(return_response, "libretto_feedback_key", libretto["feedback_key"])
-
-            # Redact PII before recording the event
-            event_response = self.redact_response(event_response)
-
-            complete_event(event_response)
-
-            return return_response
+        return self.run(libretto, model_params, make_api_call, stream=(stream or False))
 
     def get_result(self, response: Iterable[ChatCompletionChunk] | ChatCompletion):
         if isinstance(response, ChatCompletion):
