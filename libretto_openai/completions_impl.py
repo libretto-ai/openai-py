@@ -28,7 +28,7 @@ class LibrettoCompletionsBaseMixin:
         raise NotImplementedError()
 
     def _create(self, libretto: LibrettoCreateParamDict | None, *original_args, **original_kwargs):
-        libretto = self._prepare_create_params(libretto)
+        libretto = self._prepare_create_params(libretto, **original_kwargs)
 
         if libretto["project_key"] is None and libretto["api_key"] is None:
             return self._original_create(*original_args, **original_kwargs)
@@ -58,8 +58,10 @@ class LibrettoCompletionsBaseMixin:
             return_response, event_response = self._get_result(response)
 
             # Can only do this for non-streamed responses right now
-            if not original_kwargs.get("stream"):
-                setattr(return_response, "libretto_feedback_key", libretto["feedback_key"])
+            if hasattr(return_response, "model_copy"):
+                return_response = return_response.model_copy(
+                    update={"libretto_feedback_key": libretto["feedback_key"]}
+                )
 
             # Redact PII before recording the event
             event_response = self._redact_response(event_response)
@@ -69,7 +71,9 @@ class LibrettoCompletionsBaseMixin:
             return return_response
 
     def _prepare_create_params(
-        self, libretto: LibrettoCreateParamDict | None = None
+        self,
+        libretto: LibrettoCreateParamDict | None = None,
+        **_original_kwargs,
     ) -> LibrettoCreateParamDict:
         if libretto is None:
             libretto = LibrettoCreateParams()
@@ -97,7 +101,7 @@ class LibrettoCompletionsBaseMixin:
     def _build_model_params(self, **original_kwargs) -> Dict[str, Any]:
         model_params = {"modelProvider": "openai"}
         for k, v in original_kwargs.items():
-            if v == NOT_GIVEN:
+            if v == NOT_GIVEN or v is None:
                 continue
             model_params[k] = v
         return model_params
@@ -118,8 +122,10 @@ class LibrettoCompletionsBaseMixin:
                 )
 
     def _redact_response(self, event_response: str | None) -> str:
-        if not event_response or not self.pii_redactor:
+        if not event_response:
             return ""
+        if not self.pii_redactor:
+            return event_response
 
         try:
             return self.pii_redactor.redact_text(event_response)

@@ -13,7 +13,7 @@ class LibrettoChat(resources.Chat):
         self.completions = LibrettoChatCompletions(client, config)
 
 
-class LibrettoOpenAIClient(openai.Client):
+class OpenAIClient(openai.Client):
     config: LibrettoConfig
     completions: LibrettoCompletions
     chat: LibrettoChat
