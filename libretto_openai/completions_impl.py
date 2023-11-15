@@ -6,7 +6,7 @@ import uuid
 
 from typing import Any, Dict, Iterable, Tuple, cast, overload
 
-from openai._types import NOT_GIVEN
+from openai._types import NOT_GIVEN, NotGiven
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 from openai.types.completion import Completion
 
@@ -101,7 +101,7 @@ class LibrettoCompletionsBaseMixin:
     def _build_model_params(self, **original_kwargs) -> Dict[str, Any]:
         model_params = {"modelProvider": "openai"}
         for k, v in original_kwargs.items():
-            if v == NOT_GIVEN or v is None:
+            if isinstance(v, NotGiven) or v is None:
                 continue
             model_params[k] = v
         return model_params
