@@ -7,17 +7,13 @@ import uuid
 from typing import Any, Dict, Iterable, Tuple, cast, overload
 
 from openai._types import NOT_GIVEN
-from openai.types.completion import Completion
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
+from openai.types.completion import Completion
 
-from .types import LibrettoConfig
-from ..template import TemplateChat, TemplateString
-from ..patch import (
-    LibrettoCreateParamDict,
-    LibrettoCreateParams,
-    event_session,
-)
-from ..pii import Redactor
+from .pii import Redactor
+from .session import event_session
+from .template import TemplateChat, TemplateString
+from .types import LibrettoConfig, LibrettoCreateParamDict, LibrettoCreateParams
 
 
 logger = logging.getLogger(__name__)

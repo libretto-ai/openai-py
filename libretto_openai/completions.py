@@ -23,10 +23,9 @@ from openai.types.chat import (
     completion_create_params,
 )
 
-from ..template import TemplateChat, TemplateString
-from ..patch import LibrettoCreateParamDict
 from .completions_impl import LibrettoChatCompletionsMixin, LibrettoCompletionsMixin
-from .types import LibrettoConfig
+from .template import TemplateChat, TemplateString
+from .types import LibrettoCreateParamDict, LibrettoConfig
 
 
 class LibrettoCompletions(resources.Completions, LibrettoCompletionsMixin):

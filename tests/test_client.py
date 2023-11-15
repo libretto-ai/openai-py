@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch
 import aiohttp
 import pytest
 
-from libretto_openai.client import send_event
+from libretto_openai.session import send_event
 
 
 @pytest.fixture
