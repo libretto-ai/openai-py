@@ -525,7 +525,7 @@ class LibrettoCompletions(resources.Completions, LibrettoCompletionsMixin):
     @required_args(["model", "prompt"], ["model", "prompt", "stream"])
     def create(
         self,
-        *args,
+        *,
         model: Union[
             str,
             Literal[
@@ -588,7 +588,7 @@ class LibrettoCompletions(resources.Completions, LibrettoCompletionsMixin):
             extra_body=extra_body,
             timeout=timeout,
         )
-        return self._create(libretto, *args, **original_kwargs)
+        return self._create(libretto=libretto, **original_kwargs)
 
     def _original_create(self, *args, **kwargs):
         return super().create(*args, **kwargs)
@@ -1085,7 +1085,7 @@ class LibrettoChatCompletions(resources.chat.Completions, LibrettoChatCompletion
     @required_args(["messages", "model"], ["messages", "model", "stream"])
     def create(
         self,
-        *args,
+        *,
         messages: Union[List[ChatCompletionMessageParam], TemplateChat],
         model: Union[
             str,
@@ -1153,7 +1153,7 @@ class LibrettoChatCompletions(resources.chat.Completions, LibrettoChatCompletion
             extra_body=extra_body,
             timeout=timeout,
         )
-        return self._create(libretto, *args, **original_kwargs)
+        return self._create(libretto=libretto, **original_kwargs)
 
     def _original_create(self, *args, **kwargs):
         return super().create(*args, **kwargs)

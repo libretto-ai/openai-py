@@ -24,17 +24,17 @@ class LibrettoCompletionsBaseMixin:
         self.config = config
         self.pii_redactor = Redactor() if config.redact_pii else None
 
-    def _original_create(self, *args, **kwargs):
+    def _original_create(self, **kwargs):
         raise NotImplementedError()
 
-    def _create(self, libretto: LibrettoCreateParamDict | None, *original_args, **original_kwargs):
+    def _create(self, *, libretto: LibrettoCreateParamDict | None, **original_kwargs):
         libretto = self._prepare_create_params(libretto, **original_kwargs)
 
         if libretto["project_key"] is None and libretto["api_key"] is None:
-            return self._original_create(*original_args, **original_kwargs)
+            return self._original_create(**original_kwargs)
 
         if libretto["prompt_template_name"] is None and not self.config.allow_unnamed_prompts:
-            return self._original_create(*original_args, **original_kwargs)
+            return self._original_create(**original_kwargs)
 
         model_params = self._build_model_params(**original_kwargs)
 
@@ -54,7 +54,7 @@ class LibrettoCompletionsBaseMixin:
             parent_event_id=libretto["parent_event_id"],
             feedback_key=libretto["feedback_key"],
         ) as complete_event:
-            response = self._original_create(*original_args, **original_kwargs)
+            response = self._original_create(**original_kwargs)
             return_response, event_response = self._get_result(response)
 
             # Can only do this for non-streamed responses right now
