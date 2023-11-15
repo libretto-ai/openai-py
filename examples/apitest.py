@@ -51,6 +51,15 @@ def main():
     )
     print(completion)
 
+    print("TESTING FEEDBACK")
+    if not completion.model_extra or "libretto_feedback_key" not in completion.model_extra:
+        raise Exception("Missing libretto_feedback_key")
+    client.send_feedback(
+        feedback_key=completion.model_extra["libretto_feedback_key"],
+        better_response="This response would have been better!",
+        rating=0.8,
+    )
+
     print("TESTING CHAT STREAMING API")
     chat_completion_chunks = client.chat.completions.create(
         model="gpt-3.5-turbo",
