@@ -1,13 +1,13 @@
-# Libretto OpenAI Wrapper
+# Libretto OpenAI Client
 
 [![image](https://img.shields.io/pypi/v/libretto_openai.svg)](https://pypi.python.org/pypi/libretto_openai)
 
-Wrapper library for openai to send events to Libretto
+A drop-in replacement of `openai.Client` for sending events to Libretto.
 
 ## Features
 
-- Patches the openai library to allow user to set Libretto-specific parameters for each request
-- Works out of the box with langchain
+- Provides a patched `openai.Client` that allows for setting Libretto-specific parameters for each request.
+- Currently supports the synchronous versions of `completions.create()` and `chat.completions.create()`.
 
 ## Get Started
 
@@ -18,87 +18,92 @@ To send events to Libretto, you'll need to create a project. From the project yo
 
 **Note:** Prompt template names can be auto-generated if the `allow_unnamed_prompts` configuration option is set (see [below](#configuration)). However, if you rely on auto-generated names, new revisions of the same prompt will show up as different prompt templates in Libretto.
 
-### OpenAI
+### Usage
 
-You can use the `patched_openai` context manager to patch your code that uses
-the existing OpenAI client library:
+You can use the `libretto_openai.OpenAIClient` anywhere that you're currently using the official `openai.Client`.
+
+When instantiating a `libretto_openai.OpenAIClient`, you can/should provide any of the existing `openai.Client` parameters in the constructor. Libretto-specific configuration can be provided via an additional `libretto` argument (see below).
 
 To allow our tools to separate the "prompt" from the "prompt parameters", use `TemplateChat` and `TemplateText` to create templates.
 
 Use `TemplateChat` For the ChatCompletion APIs:
 
 ```python
-from libretto_openai import patched_openai, TemplateChat
+from libretto_openai import (
+    OpenAIClient,
+    LibrettoConfig,
+    LibrettoCreateParams,
+    TemplateChat,
+)
 
-with patched_openai(api_key="...", prompt_template_name="sport-emoji"):
-    import openai
+client = OpenAIClient(
+    api_key="<OpenAI API Key>",
+    libretto=LibrettoConfig(
+        api_key="<Libretto API Key>",
+    ),
+)
 
-    completion = openai.ChatCompletion.create(
-        # Standard OpenAI parameters
-        model="gpt-3.5-turbo",
-        messages=TemplateChat(
-            [{"role": "user", "content": "Show me an emoji that matches the sport: {sport}"}],
-            {"sport": "soccer"},
-        ),
-    )
+completion = client.chat.completions.create(
+    # Standard OpenAI parameters
+    model="gpt-3.5-turbo",
+    messages=TemplateChat(
+        [{"role": "user", "content": "Show me an emoji that matches the sport: {sport}"}],
+        {"sport": "soccer"},
+    ),
+    libretto=LibrettoCreateParams(
+        prompt_template_name="sport-emoji",
+    ),
+)
 ```
 
 Use `TemplateText` for the Completion API:
 
 ```python
-from libretto_openai import patched_openai, TemplateText
+from libretto_openai import (
+    OpenAIClient,
+    LibrettoConfig,
+    LibrettoCreateParams,
+    TemplateChat,
+)
 
-with patched_openai(api_key="...", prompt_template_name="sport-emoji"):
-    import openai
+client = OpenAIClient(
+    api_key="<OpenAI API Key>",
+    libretto=LibrettoConfig(
+        api_key="<Libretto API Key>",
+    ),
+)
 
-    completion = openai.Completion.create(
-        # Standard OpenAI parameters
-        model="text-davinci-003",
-        prompt=TemplateText("Show me an emoji that matches the sport: {sport}", {"sport": "soccer"}),
-    )
+completion = client.completions.create(
+    # Standard OpenAI parameters
+    model="text-davinci-003",
+    prompt=TemplateText(
+        "Show me an emoji that matches the sport: {sport}",
+        {"sport": "soccer"},
+    ),
+    libretto=LibrettoCreateParams(
+        prompt_template_name="sport-emoji",
+    ),
+)
 ```
 
 #### Advanced usage
 
-##### Patching at startup
-
-Rather than using a context manager, you can patch the library once at startup:
-
-```python
-from libretto_openai import patch_openai
-patch_openai(api_key="...", prompt_template_name="...")
-```
-
-Then, you can use the patched library as normal:
-
-```python
-import openai
-
-completion = openai.ChatCompletion.create(
-    # Standard OpenAI parameters
-    ...)
-```
-
 ##### Manually passing parameters
 
-While the use of `TemplateText` and `TemplateChat` are preferred, most of the parameters passed during patch can also be specified inline when calling the `create()` method.
+While the use of `TemplateText` and `TemplateChat` are preferred, you can optionally specify template data inline when calling the `create()` method:
 
 ```python
-from libretto_openai import patch_openai, LibrettoCreateParams
-patch_openai()
-
 completion = openai.ChatCompletion.create(
     model="gpt-3.5-turbo",
 
-    # Note we are passing the raw chat object here
+    # Note we are passing the raw messages object here
     messages=[{"role": "user", "content": "Show me an emoji that matches the sport: soccer"}],
 
     libretto=LibrettoCreateParams(
         # call configuration
-        api_key="...",
         prompt_template_name="sport-emoji",
 
-        # Here the prompt and parameters is passed seperately
+        # Here the prompt and parameters are passed seperately
         template_params={"sport": "soccer"},
         template_chat=[
             {"role": "user", "content": "Show me an emoji that matches the sport: {sport}"}
@@ -107,78 +112,9 @@ completion = openai.ChatCompletion.create(
 )
 ```
 
-### Langchain
-
-For langchain, you can directly patch, or use a context manager before setting up a chain:
-
-Using a context manager: (recommended)
-
-```python
-from langchain import LLMChain, PromptTemplate, OpenAI
-from libretto_openai.langchain import prompt_watch_tracing
-
-with prompt_watch_tracing(api_key="4b2a6608-86cd-4819-aba6-479f9edd8bfb", prompt_template_name="sport-emoji"):
-    chain = LLMChain(llm=OpenAI(),
-        prompt=PromptTemplate.from_template("What is the capital of {country}?"))
-    capital = chain.run({"country": "Sweden"})
-```
-
-The `api_key` parameter is visible from your project's settings page.
-
-the prompt_template_name parameter can also be passed directly to a template when you create it, so that it can be tracked separately from other templates:
-
-```python
-from langchain import OpenAI, PromptTemplate, LLMChain
-from libretto_openai.langchain import prompt_watch_tracing
-
-# The default prompt_template_name is "default-questions"
-with prompt_watch_tracing(api_key="4b2a6608-86cd-4819-aba6-479f9edd8bfb", prompt_template_name="default-questions"):
-    prompt = PromptTemplate.from_template("""
-Please answer the following question: {question}.
-""")
-    llm = LLMChain(prompt=prompt, llm=OpenAI())
-    llm.run(question="What is the meaning of life?")
-
-    # Track user greetings separately under the `user-greeting` api name
-    greeting_prompt = PromptTemplate.from_template("""
-Please greet our newest forum member, {user}.
-Be nice and enthusiastic but not overwhelming.
-""",
-        additional_kwargs={"libretto_prompt_template_name": "user-greeting"})
-    llm = LLMChain(prompt=greeting_prompt, llm=OpenAI(openai_api_key=...))
-    llm.run(user="Bob")
-```
-
-### Advanced usage
-
-You can patch directly:
-
-```python
-from libretto_openai.langchain import enable_prompt_watch_tracing, disable_prompt_watch_tracing
-
-old_tracer = enable_prompt_watch_tracing(api_key="4b2a6608-86cd-4819-aba6-479f9edd8bfb", prompt_template_name="sport-emoji")
-
-prompt = PromptTemplate.from_template("""
-Please answer the following question: {question}.
-""")
-llm = LLMChain(prompt=prompt, llm=OpenAI())
-llm.run(question="What is the meaning of life?")
-
-# Track user greetings separately under the `user-greeting` api name
-greeting_prompt = PromptTemplate.from_template("""
-Please greet our newest forum member, {user}. Be nice and enthusiastic but not overwhelming.
-""",
-    additional_kwargs={"libretto_prompt_template_name": "user-greeting"})
-llm = LLMChain(prompt=greeting_prompt, llm=OpenAI(openai_api_key=...))
-llm.run(user="Bob")
-
-# optional, if you need to disable tracing later
-disable_prompt_watch_tracing(old_tracer)
-```
-
 ### Configuration
 
-The following options may be passed as kwargs when patching:
+The `libretto` kwarg that's present on the `OpenAIClient` constructor is a `LibrettoConfig` object with the following options:
 
 - `prompt_template_name`: A default name to associate with prompts. If provided,
   this is the name that will be associated with any `create` call that's made
@@ -189,25 +125,14 @@ The following options may be passed as kwargs when patching:
   `create`). `False` by default.
 - `redact_pii`: When `True`, certain personally identifying information (PII) will be attempted to be redacted before being sent to the Libretto backend. See the `pii` package for details about the types of PII being detected/redacted. `False` by default.
 
-### Additional Parameters
+### Additional Create Call Parameters
 
-The following parameters are available in both the patched OpenAI client and the Langchain wrapper.
-
-- For OpenAI, pass these to the `create()` methods.
-- For Langchain, pass these to the `prompt_watch_tracing()` context manager or
-    the `enable_prompt_watch_tracing()` function.
-
-Parameters:
+When calling `create()`, a `libretto` argument should be provided to give Libretto-specific context to the call. The following parameters maybe specified:
 
 - `chat_id`: The id of a "chat session" - if the chat API is
     being used in a conversational context, then the same chat id can be
     provided so that the events are grouped together, in order. If not provided,
     this will be left blank.
-
-OpenAI-only parameters:
-
-The following parameters can be specified in the `libretto` object that has been
-added to the base OpenAI `create` call interface:
 
 - `template_chat`: The chat _template_ to record for chat requests. This is a list of dictionaries with the following keys:
 
@@ -217,7 +142,7 @@ added to the base OpenAI `create` call interface:
   For example:
 
   ```python
-  completion = openai.ChatCompletion.create(
+  completion = client.chat.completions.create(
       ...,
       libretto=LibrettoCreateParams(
           template_chat=[
@@ -235,7 +160,7 @@ added to the base OpenAI `create` call interface:
   For example:
 
   ```python
-  completion = openai.Completion.create(
+  completion = client.completions.create(
       ...,
       libretto=LibrettoCreateParams(
           template_text="Please welcome the user to {system_name}!",
@@ -248,7 +173,7 @@ added to the base OpenAI `create` call interface:
   For example:
 
   ```python
-  completion = openai.Completion.create(
+  completion = client.completions.create(
       ...,
       libretto=LibrettoCreateParams(
           template_text="Please welcome the user to {system_name}!",
@@ -257,14 +182,14 @@ added to the base OpenAI `create` call interface:
   )
   ```
 
-- `event_id`: A unique UUID for a specific call. If not provided, one will be generated. **Note**: In the langchain wrapper, this value is inferred from the chain `run_id`.
+- `event_id`: A unique UUID for a specific call. If not provided, one will be generated.
 
   For example:
 
   ```python
   import uuid
 
-  completion = openai.Completion.create(
+  completion = client.completions.create(
       ...,
       libretto=LibrettoCreateParams(
           event_id=uuid.uuid4(),
@@ -272,7 +197,7 @@ added to the base OpenAI `create` call interface:
   )
   ```
 
-- `parent_event_id`: The UUID of the parent event. All calls with the same parent id are grouped as a "Run Group". **Note**: In the langchain wrapper, this value is inferred from the chain `parent_run_id`.
+- `parent_event_id`: The UUID of the parent event. All calls with the same parent id are grouped as a "Run Group".
 
   For example:
 
@@ -281,7 +206,7 @@ added to the base OpenAI `create` call interface:
 
   parent_id = uuid.uuid4()
   # First call in the run group
-  completion = openai.Completion.create(
+  completion = client.completions.create(
       ...,
       libretto=LibrettoCreateParams(
           parent_event_id=parent_id,
@@ -289,7 +214,7 @@ added to the base OpenAI `create` call interface:
   )
 
   # Another call in the same group
-  completion = openai.Completion.create(
+  completion = client.completions.create(
       ...,
       libretto=LibrettoCreateParams(
           parent_event_id=parent_id,
@@ -314,27 +239,26 @@ let you review this feedback in the Libretto dashboard. You can use this
 feedback to develop new tests and improve your prompts.
 
 ```python
-from libretto_openai import patch_openai, client
-patch_openai()
+from libretto_openai import OpenAIClient
 
-completion = openai.ChatCompletion.create(
-    ...)
+client = OpenAIClient()
+completion = client.completions.create(...)
 
-
-# Maybe the user didn't like the answer, so ask them for a better one.
-better_response = askUserForBetterResult(completion["choices"][0]["text"])
+# Maybe the user didn't like the answer, so ask them for a better one
+better_response = ask_user_for_better_response(completion.choices[0].text)
 
 # If the user provided a better answer, send feedback to Libretto
-if better_response !== completion["choices"][0]["text"]:
-# feedback key is automatically injected into OpenAI response object.
-feedback_key = completion.libretto_feedback_key
-client.send_feedback(
-    api_key=api_key,
-    feedback_key=feedback_key,
-    # Better answer from the user
-    better_response=better_response,
-    # Rating of existing answer, from 0 to 1
-    rating=0.2)
+if better_response !== completion.choices[0].text:
+    # feedback key is automatically injected into OpenAI response object as an extra field
+    feedback_key = completion.model_extra.get("libretto_feedback_key")
+    client.send_feedback(
+        feedback_key=feedback_key,
+        # Better answer from the user
+        better_response=better_response,
+        # Rating of existing answer, from 0 to 1
+        rating=0.2,
+    )
+
 ```
 
 Note that feedback can include either `rating`, `better_response`, or both.
