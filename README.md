@@ -20,9 +20,9 @@ To send events to Libretto, you'll need to create a project. From the project yo
 
 ### Usage
 
-You can use the `libretto_openai.OpenAIClient` anywhere that you're currently using the official `openai.Client`.
+You can use the `libretto_openai.Client` anywhere that you're currently using the official `openai.Client`.
 
-When instantiating a `libretto_openai.OpenAIClient`, you can/should provide any of the existing `openai.Client` parameters in the constructor. Libretto-specific configuration can be provided via an additional `libretto` argument (see below).
+When instantiating a `libretto_openai.Client`, you can/should provide any of the existing `openai.Client` parameters in the constructor. Libretto-specific configuration can be provided via an additional `libretto` argument (see below).
 
 To allow our tools to separate the "prompt" from the "prompt parameters", use `TemplateChat` and `TemplateText` to create templates.
 
@@ -30,13 +30,13 @@ Use `TemplateChat` For the ChatCompletion APIs:
 
 ```python
 from libretto_openai import (
-    OpenAIClient,
+    Client,
     LibrettoConfig,
     LibrettoCreateParams,
     TemplateChat,
 )
 
-client = OpenAIClient(
+client = Client(
     api_key="<OpenAI API Key>",
     libretto=LibrettoConfig(
         api_key="<Libretto API Key>",
@@ -60,13 +60,13 @@ Use `TemplateText` for the Completion API:
 
 ```python
 from libretto_openai import (
-    OpenAIClient,
+    Client,
     LibrettoConfig,
     LibrettoCreateParams,
     TemplateChat,
 )
 
-client = OpenAIClient(
+client = Client(
     api_key="<OpenAI API Key>",
     libretto=LibrettoConfig(
         api_key="<Libretto API Key>",
@@ -114,7 +114,7 @@ completion = openai.ChatCompletion.create(
 
 ### Configuration
 
-The `libretto` kwarg that's present on the `OpenAIClient` constructor is a `LibrettoConfig` object with the following options:
+The `libretto` kwarg that's present on the `Client` constructor is a `LibrettoConfig` object with the following options:
 
 - `prompt_template_name`: A default name to associate with prompts. If provided,
   this is the name that will be associated with any `create` call that's made
@@ -239,9 +239,9 @@ let you review this feedback in the Libretto dashboard. You can use this
 feedback to develop new tests and improve your prompts.
 
 ```python
-from libretto_openai import OpenAIClient
+from libretto_openai import Client
 
-client = OpenAIClient()
+client = Client()
 completion = client.completions.create(...)
 
 # Maybe the user didn't like the answer, so ask them for a better one

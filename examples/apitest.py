@@ -5,7 +5,7 @@ import sys
 import time
 
 from libretto_openai import (
-    OpenAIClient,
+    Client,
     LibrettoConfig,
     LibrettoCreateParams,
     TemplateChat,
@@ -19,7 +19,7 @@ imlogger.addHandler(logging.StreamHandler())
 
 
 def main():
-    client = OpenAIClient(
+    client = Client(
         libretto=LibrettoConfig(
             redact_pii=False,
         )

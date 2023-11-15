@@ -6,6 +6,6 @@ from importlib.metadata import PackageNotFoundError, version
 
 __version__ = version(__package__) if __package__ else "unknown"
 
-from .client import OpenAIClient
+from .client import Client
 from .types import LibrettoConfig, LibrettoCreateParamDict, LibrettoCreateParams
 from .template import TemplateChat, TemplateString

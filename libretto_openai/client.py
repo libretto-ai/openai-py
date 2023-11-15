@@ -20,7 +20,7 @@ class LibrettoChat(resources.Chat):
         self.completions = LibrettoChatCompletions(client, config)
 
 
-class OpenAIClient(openai.Client):
+class Client(openai.Client):
     config: LibrettoConfig
     completions: LibrettoCompletions
     chat: LibrettoChat

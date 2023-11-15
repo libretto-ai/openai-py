@@ -8,7 +8,7 @@ from openai.types.chat.chat_completion import Choice
 import pytest
 
 from libretto_openai import (
-    OpenAIClient,
+    Client,
     LibrettoConfig,
     LibrettoCreateParams,
     TemplateChat,
@@ -25,7 +25,7 @@ def mock_send_event():
 
 
 def test_chat_completion(mock_send_event: MagicMock):
-    client = OpenAIClient(api_key="test")
+    client = Client(api_key="test")
     client.chat.completions._original_create = MagicMock()
 
     template = "Send a greeting to our new user named {name}"
@@ -116,7 +116,7 @@ def test_chat_completion_redact_pii(
     redact_pii, expect_params, expect_response, mock_send_event: MagicMock
 ):
     mock_chat_create = MagicMock()
-    client = OpenAIClient(
+    client = Client(
         api_key="test",
         libretto=LibrettoConfig(
             redact_pii=redact_pii,
