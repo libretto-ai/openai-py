@@ -6,7 +6,7 @@ import uuid
 
 from typing import Any, Dict, Iterable, Tuple, cast, overload
 
-from openai._types import NOT_GIVEN, NotGiven
+from openai._types import NotGiven
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 from openai.types.completion import Completion
 
