@@ -1,7 +1,12 @@
 import time
 
-from libretto_openai.libretto_client import LibrettoOpenAIClient, LibrettoConfig
-from libretto_openai import TemplateChat, TemplateString, LibrettoCreateParams
+from libretto_openai.v1 import (
+    LibrettoCreateParams,
+    LibrettoOpenAIClient,
+    LibrettoConfig,
+    TemplateChat,
+    TemplateString,
+)
 
 
 def main():
