@@ -1,14 +1,16 @@
 #!/usr/bin/env python
+
 import logging
-import os
 import sys
-from typing import Dict, cast
+import time
 
-import openai
-
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-
-from libretto_openai import patch_openai, TemplateChat, TemplateString, LibrettoCreateParams
+from libretto_openai import (
+    Client,
+    LibrettoConfig,
+    LibrettoCreateParams,
+    TemplateChat,
+    TemplateString,
+)
 
 
 imlogger = logging.getLogger("libretto_openai")
@@ -17,12 +19,17 @@ imlogger.addHandler(logging.StreamHandler())
 
 
 def main():
-    print("TESTING CHAT COMPLETION API")
-    unpatch = patch_openai()
+    client = Client(
+        libretto=LibrettoConfig(
+            redact_pii=False,
+        )
+    )
+
     template = "Send a greeting to our new user named {name}"
     params = {"name": "Alec"}
 
-    chat_completion = openai.ChatCompletion.create(
+    print("TESTING CHAT COMPLETION API")
+    chat_completion = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=TemplateChat(
             [{"role": "user", "content": template}],
@@ -35,7 +42,7 @@ def main():
     print(chat_completion)
 
     print("TESTING COMPLETION API")
-    completion = openai.Completion.create(
+    completion = client.completions.create(
         model="text-davinci-003",
         prompt=TemplateString(template, params),
         libretto=LibrettoCreateParams(
@@ -44,10 +51,18 @@ def main():
     )
     print(completion)
 
+    print("TESTING FEEDBACK")
+    if not completion.model_extra or "libretto_feedback_key" not in completion.model_extra:
+        raise Exception("Missing libretto_feedback_key")
+    client.send_feedback(
+        feedback_key=completion.model_extra["libretto_feedback_key"],
+        better_response="This response would have been better!",
+        rating=0.8,
+    )
+
     print("TESTING CHAT STREAMING API")
-    chat_completion = openai.ChatCompletion.create(
+    chat_completion_chunks = client.chat.completions.create(
         model="gpt-3.5-turbo",
-        stream=True,
         messages=TemplateChat(
             [{"role": "user", "content": template}],
             params,
@@ -55,15 +70,19 @@ def main():
         libretto=LibrettoCreateParams(
             prompt_template_name="test-from-apitest-chat",
         ),
+        stream=True,
     )
-    for chat_result in chat_completion:
-        delta = cast(Dict, chat_result)
-        if "content" in delta["choices"][0]["delta"]:
-            sys.stdout.write(delta["choices"][0]["delta"]["content"])
+    # Seems like there's a false positive bug in pylint that only occurs when
+    # both stream=True and stream=False are used in the same file.
+    # pylint: disable=not-an-iterable
+    for chunk in chat_completion_chunks:
+        if chunk.choices[0].delta.content:
+            sys.stdout.write(chunk.choices[0].delta.content)
     print("")
-
-    unpatch()
 
 
 if __name__ == "__main__":
     main()
+
+    # Try to allow the background thread to finish
+    time.sleep(3)
