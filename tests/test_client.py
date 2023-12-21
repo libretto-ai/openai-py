@@ -79,6 +79,7 @@ def test_chat_completion(mock_send_event: MagicMock):
             response=ANY,
             response_time=ANY,
             feedback_key=ANY,
+            tools=None,
         ),
     )
 
