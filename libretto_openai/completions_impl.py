@@ -274,6 +274,7 @@ class LibrettoChatCompletionsMixin(LibrettoCompletionsBaseMixin):
             return {
                 "name": call.name,
                 "arguments": call.arguments,
+                "error": "invalid_json",
             }
 
     def _resolve_tool_calls(self, calls: Iterable[ChatCompletionMessageToolCall]):
