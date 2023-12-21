@@ -45,6 +45,7 @@ async def send_event(
     parent_event_id: str | None = None,
     model_params: Dict | None = None,
     feedback_key: str | None = None,
+    tools: Any | None = None,
 ) -> SendEventResponse | None:
     """Send an event to Libretto. Returns the id of the event that was added on the server."""
     reporting_url = get_url("event", "LIBRETTO_REPORTING_URL")
@@ -97,6 +98,8 @@ async def send_event(
         event["chatId"] = chat_id
     if parent_event_id is not None:
         event["parentEventId"] = str(parent_event_id)
+    if tools is not None:
+        event["tools"] = tools
 
     result = await session.post(reporting_url, json=event)
     json: SendEventResponse = await result.json()
@@ -118,6 +121,7 @@ def event_session(
     prompt_event_id: str | None = None,
     parent_event_id: str | None = None,
     feedback_key: str | None = None,
+    tools: Any | None = None,
 ):
     """Context manager for sending an event to Templatest
 
@@ -154,6 +158,7 @@ def event_session(
             response=response,
             response_time=response_time,
             feedback_key=feedback_key,
+            tools=tools,
         )
 
     yield complete_event
@@ -175,6 +180,7 @@ def send_event_background(
     parent_event_id: str | None = None,
     model_params: Dict | None = None,
     feedback_key: str | None = None,
+    tools: Any | None = None,
 ):
     """Send an event on a background thread"""
 
@@ -195,6 +201,7 @@ def send_event_background(
             parent_event_id=parent_event_id,
             model_params=model_params,
             feedback_key=feedback_key,
+            tools=tools,
         )
 
 

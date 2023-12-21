@@ -8,6 +8,11 @@ from typing import Any, Dict, Iterable, Tuple, cast, overload
 
 from openai._types import NotGiven
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
+from openai.types.chat.chat_completion_message import FunctionCall
+from openai.types.chat.chat_completion_message_tool_call import (
+    Function,
+    ChatCompletionMessageToolCall,
+)
 from openai.types.completion import Completion
 
 from .pii import Redactor
@@ -37,6 +42,7 @@ class LibrettoCompletionsBaseMixin:
             return self._original_create(**original_kwargs)
 
         model_params = self._build_model_params(**original_kwargs)
+        tools = model_params.pop("tools", None)
 
         # Redact PII from template parameters if configured to do so
         self._redact_template_params(libretto["template_params"])
@@ -53,6 +59,7 @@ class LibrettoCompletionsBaseMixin:
             prompt_event_id=libretto["event_id"],
             parent_event_id=libretto["parent_event_id"],
             feedback_key=libretto["feedback_key"],
+            tools=tools,
         ) as complete_event:
             response = self._original_create(**original_kwargs)
             return_response, event_response = self._get_result(response)
@@ -236,7 +243,13 @@ class LibrettoChatCompletionsMixin(LibrettoCompletionsBaseMixin):
 
         message = response.choices[0].message
         if message.function_call:
-            return response, json.dumps({"function_call": message.function_call})
+            return response, json.dumps(
+                {"function_call": self._resolve_function_call(message.function_call)}
+            )
+        if message.tool_calls:
+            return response, json.dumps(
+                {"tool_calls": self._resolve_tool_calls(message.tool_calls)}
+            )
         return response, message.content or ""
 
     def _get_stream_result(
@@ -250,3 +263,29 @@ class LibrettoChatCompletionsMixin(LibrettoCompletionsBaseMixin):
             if response.choices[0].delta.function_call is not None:
                 logger.warning("Streaming a function_call response is not supported yet.")
         return (original_response, "".join(accumulated))
+
+    def _resolve_function_call(self, call: Function | FunctionCall):
+        try:
+            return {
+                "name": call.name,
+                "arguments": json.loads(call.arguments),
+            }
+        except json.JSONDecodeError:
+            return {
+                "name": call.name,
+                "arguments": call.arguments,
+            }
+
+    def _resolve_tool_calls(self, calls: Iterable[ChatCompletionMessageToolCall]):
+        out = []
+        for call in calls:
+            if call.type == "function":
+                out.append(
+                    {
+                        "type": call.type,
+                        "function": self._resolve_function_call(call.function),
+                    }
+                )
+            else:
+                out.append(call)
+        return out
