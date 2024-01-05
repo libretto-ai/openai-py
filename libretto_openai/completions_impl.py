@@ -243,12 +243,10 @@ class LibrettoChatCompletionsMixin(LibrettoCompletionsBaseMixin):
 
         message = response.choices[0].message
         if message.function_call:
-            return response, json.dumps(
-                {"function_call": self._resolve_function_call(message.function_call)}
-            )
+            return response, json.dumps({"function_call": message.function_call.model_dump()})
         if message.tool_calls:
             return response, json.dumps(
-                {"tool_calls": self._resolve_tool_calls(message.tool_calls)}
+                {"tool_calls": [c.model_dump() for c in message.tool_calls]}
             )
         return response, message.content or ""
 
@@ -263,30 +261,3 @@ class LibrettoChatCompletionsMixin(LibrettoCompletionsBaseMixin):
             if response.choices[0].delta.function_call is not None:
                 logger.warning("Streaming a function_call response is not supported yet.")
         return (original_response, "".join(accumulated))
-
-    def _resolve_function_call(self, call: Function | FunctionCall):
-        try:
-            return {
-                "name": call.name,
-                "arguments": json.loads(call.arguments),
-            }
-        except json.JSONDecodeError:
-            return {
-                "name": call.name,
-                "arguments": call.arguments,
-                "error": "invalid_json",
-            }
-
-    def _resolve_tool_calls(self, calls: Iterable[ChatCompletionMessageToolCall]):
-        out = []
-        for call in calls:
-            if call.type == "function":
-                out.append(
-                    {
-                        "type": call.type,
-                        "function": self._resolve_function_call(call.function),
-                    }
-                )
-            else:
-                out.append(call)
-        return out
