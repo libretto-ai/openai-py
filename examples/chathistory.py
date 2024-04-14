@@ -49,10 +49,15 @@ def main():
                 "coach_question": "Why are you always late to meetings?",
             },
         ),
-        libretto=LibrettoCreateParams(prompt_template_name="weather-report", chat_id="chat-1"),
+        libretto=LibrettoCreateParams(
+            prompt_template_name="chat-history-py-test", chat_id="chat-1"
+        ),
     )
     print(chat_completion)
 
 
 if __name__ == "__main__":
     main()
+
+    # Try to allow the background thread to finish
+    time.sleep(2)
