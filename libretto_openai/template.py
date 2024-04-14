@@ -1,6 +1,11 @@
 import re
 from typing import Any, Dict
 
+EXTRACT_PARAM_RE = r"\{(.*?)\}"
+ROLE = "role"
+CONTENT = "content"
+CHAT_HISTORY = "chat_history"
+
 
 class TemplateString(str):
     """Wrapper class for strings that allows us to track parameters."""
@@ -55,18 +60,18 @@ def _format_item(item, params):
 # Returns true of the role of the item is chat_history
 def isLibrettoChatHistory(item):
     if isinstance(item, dict):
-        return item.get("role") == "chat_history"
+        return item.get(ROLE) == CHAT_HISTORY
     return False
 
 
 # Finds the chat_history parameter and returns that param list
 def expandChatHistory(item, params: Dict[str, Any]):
-    content: str = item.get("content")
+    content: str = item.get(CONTENT)
     if not content:
         return []
 
     # Extract the parameter to get the param name
-    all_params = re.findall(r"\{(.*?)\}", content)
+    all_params = re.findall(EXTRACT_PARAM_RE, content)
     if len(all_params) != 1:
         raise RuntimeError(
             "Expected to find one and only one parameter for the chat_history role's content, but found: "
