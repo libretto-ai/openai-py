@@ -15,3 +15,35 @@ def test_template_chat():
     assert template.params == {"name": "John"}
     assert template == [{"role": "system", "content": "Hello John"}]
     assert str(template) == "[{'role': 'system', 'content': 'Hello John'}]"
+
+
+def test_template_chat_with_chat_history():
+    messages = [
+        {
+            "role": "system",
+            "content": "My role is to be the AI Coach Supervisor",
+        },
+        {
+            "role": "chat_history",
+            "content": "{prev_messages}",
+        },
+        {
+            "role": "user",
+            "content": "{coach_question}",
+        },
+    ]
+
+    template = (
+        TemplateChat(
+            messages,
+            {
+                "prev_messages": [
+                    {"role": "user", "content": "First User message"},
+                    {"role": "assistant", "content": "First response from OpenAI"},
+                ],
+                "coach_question": "Why are you always late to meetings?",
+            },
+        ),
+    )[0]
+
+    assert template.template == messages

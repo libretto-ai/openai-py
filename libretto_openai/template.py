@@ -1,3 +1,4 @@
+import re
 from typing import Any, Dict
 
 
@@ -36,9 +37,45 @@ def _format_item(item, params):
     if isinstance(item, str):
         return TemplateString(item, params)
     if isinstance(item, list):
-        return [_format_item(l, params) for l in item]
+        all_items = []
+        for l in item:
+            # We have a reserved keyword for chat history that we do special handling for
+            if isLibrettoChatHistory(l):
+                all_items.extend(expandChatHistory(l, params))
+            else:
+                all_items.append(_format_item(l, params))
+        return all_items
     if isinstance(item, tuple):
         return tuple(_format_item(l, params) for l in item)
     if isinstance(item, dict):
         return {_format_item(k, params): _format_item(v, params) for k, v in item.items()}
     return item
+
+
+# Returns true of the role of the item is chat_history
+def isLibrettoChatHistory(item):
+    if isinstance(item, dict):
+        return item.get("role") == "chat_history"
+    return False
+
+
+# Finds the chat_history parameter and returns that param list
+def expandChatHistory(item, params: Dict[str, Any]):
+    content: str = item.get("content")
+    if not content:
+        return []
+
+    # Extract the parameter to get the param name
+    all_params = re.findall(r"\{(.*?)\}", content)
+    if len(all_params) != 1:
+        raise RuntimeError(
+            "Expected to find one and only one parameter for the chat_history role's content, but found: "
+            + str(all_params)
+        )
+
+    chat_history_param = all_params[0]
+
+    if not chat_history_param:
+        return []
+
+    return params[chat_history_param]
