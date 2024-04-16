@@ -25,14 +25,13 @@ def test_template_chat_with_chat_history():
         },
         {
             "role": "chat_history",
-            "content": "{prev_messages}",
+            "content": "{prev_messages} {second_history}",
         },
         {
             "role": "user",
             "content": "{coach_question}",
         },
     ]
-
     template = (
         TemplateChat(
             messages,
@@ -41,9 +40,14 @@ def test_template_chat_with_chat_history():
                     {"role": "user", "content": "First User message"},
                     {"role": "assistant", "content": "First response from OpenAI"},
                 ],
+                "second_history": [
+                    {"role": "user", "content": "Second User message"},
+                    {"role": "assistant", "content": "Second response from OpenAI"},
+                ],
                 "coach_question": "Why are you always late to meetings?",
             },
         ),
     )[0]
 
-    assert template.template == messages
+    expected_result = "[{'role': 'system', 'content': 'My role is to be the AI Coach Supervisor'}, {'role': 'user', 'content': 'First User message'}, {'role': 'assistant', 'content': 'First response from OpenAI'}, {'role': 'user', 'content': 'Second User message'}, {'role': 'assistant', 'content': 'Second response from OpenAI'}, {'role': 'user', 'content': 'Why are you always late to meetings?'}]"
+    assert str(template) == expected_result

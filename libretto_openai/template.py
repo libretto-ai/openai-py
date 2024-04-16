@@ -1,7 +1,7 @@
 import re
 from typing import Any, Dict
 
-EXTRACT_PARAM_RE = r"\{(.*?)\}"
+EXTRACT_PARAM_RE = r"\{(.+?)\}"
 ROLE = "role"
 CONTENT = "content"
 CHAT_HISTORY = "chat_history"
@@ -45,8 +45,8 @@ def _format_item(item, params):
         all_items = []
         for l in item:
             # We have a reserved keyword for chat history that we do special handling for
-            if isLibrettoChatHistory(l):
-                all_items.extend(expandChatHistory(l, params))
+            if is_libretto_chat_history(l):
+                all_items.extend(expand_chat_history(l, params))
             else:
                 all_items.append(_format_item(l, params))
         return all_items
@@ -58,29 +58,31 @@ def _format_item(item, params):
 
 
 # Returns true of the role of the item is chat_history
-def isLibrettoChatHistory(item):
+def is_libretto_chat_history(item):
     if isinstance(item, dict):
         return item.get(ROLE) == CHAT_HISTORY
     return False
 
 
 # Finds the chat_history parameter and returns that param list
-def expandChatHistory(item, params: Dict[str, Any]):
+def expand_chat_history(item, params: Dict[str, Any]):
     content: str = item.get(CONTENT)
     if not content:
-        return []
+        raise RuntimeError("Expected content for the 'chat_history' role but none was found.")
 
-    # Extract the parameter to get the param name
+    # Extract the parameter names since we can have more than that
     all_params = re.findall(EXTRACT_PARAM_RE, content)
-    if len(all_params) != 1:
+    if not all_params:
         raise RuntimeError(
-            "Expected to find one and only one parameter for the chat_history role's content, but found: "
-            + str(all_params)
+            "Expected at least one parameter in the 'chat_history' role but none was found."
         )
 
-    chat_history_param = all_params[0]
+    all_messages = []
+    for ep in all_params:
+        if ep not in params:
+            raise RuntimeError(
+                f"Expected parameter '{ep}' to be defined in the parameters, but it was not found."
+            )
+        all_messages.extend(params[ep])
 
-    if not chat_history_param:
-        return []
-
-    return params[chat_history_param]
+    return all_messages
