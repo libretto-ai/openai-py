@@ -70,14 +70,16 @@ def test_template_chat_with_chat_history_raises():
         },
     ]
 
-    with pytest.raises(RuntimeError):
+    expected_err_message = "Only variables are allowed in the chat_history role."
+    with pytest.raises(RuntimeError) as exc_info:
         TemplateChat(
             messages,
             {
-                "prev_messages": [
+                "prev_history": [
                     {"role": "user", "content": "First User message"},
                     {"role": "assistant", "content": "First response from OpenAI"},
                 ],
                 "coach_question": "Why are you always late to meetings?",
             },
         )
+    assert str(exc_info.value) == expected_err_message
