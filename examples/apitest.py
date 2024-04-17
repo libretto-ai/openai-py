@@ -9,7 +9,6 @@ from libretto_openai import (
     LibrettoConfig,
     LibrettoCreateParams,
     TemplateChat,
-    TemplateString,
 )
 
 
@@ -41,21 +40,14 @@ def main():
     )
     print(chat_completion)
 
-    print("TESTING COMPLETION API")
-    completion = client.completions.create(
-        model="text-davinci-003",
-        prompt=TemplateString(template, params),
-        libretto=LibrettoCreateParams(
-            prompt_template_name="test-from-apitest-completion",
-        ),
-    )
-    print(completion)
-
     print("TESTING FEEDBACK")
-    if not completion.model_extra or "libretto_feedback_key" not in completion.model_extra:
+    if (
+        not chat_completion.model_extra
+        or "libretto_feedback_key" not in chat_completion.model_extra
+    ):
         raise Exception("Missing libretto_feedback_key")
     client.send_feedback(
-        feedback_key=completion.model_extra["libretto_feedback_key"],
+        feedback_key=chat_completion.model_extra["libretto_feedback_key"],
         better_response="This response would have been better!",
         rating=0.8,
     )

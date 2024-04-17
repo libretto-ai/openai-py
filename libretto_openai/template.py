@@ -1,4 +1,10 @@
+import re
 from typing import Any, Dict
+
+EXTRACT_PARAM_RE = r"\{(.+?)\}"
+ROLE = "role"
+CONTENT = "content"
+CHAT_HISTORY = "chat_history"
 
 
 class TemplateString(str):
@@ -36,9 +42,56 @@ def _format_item(item, params):
     if isinstance(item, str):
         return TemplateString(item, params)
     if isinstance(item, list):
-        return [_format_item(l, params) for l in item]
+        all_items = []
+        for l in item:
+            # We have a reserved keyword for chat history that we do special handling for
+            if is_libretto_chat_history(l):
+                all_items.extend(expand_chat_history(l, params))
+            else:
+                all_items.append(_format_item(l, params))
+        return all_items
     if isinstance(item, tuple):
         return tuple(_format_item(l, params) for l in item)
     if isinstance(item, dict):
         return {_format_item(k, params): _format_item(v, params) for k, v in item.items()}
     return item
+
+
+# Returns true of the role of the item is chat_history
+def is_libretto_chat_history(item):
+    if isinstance(item, dict):
+        return item.get(ROLE) == CHAT_HISTORY
+    return False
+
+
+# Finds the chat_history parameter and returns that param list
+def expand_chat_history(item, params: Dict[str, Any]):
+    content: str = item.get(CONTENT)
+    if not content:
+        raise RuntimeError("Expected content for the 'chat_history' role but none was found.")
+
+    # Extract the parameter names since we can have more than that
+    all_params = re.findall(EXTRACT_PARAM_RE, content)
+    if not all_params:
+        raise RuntimeError(
+            "Expected at least one parameter in the 'chat_history' role but none was found."
+        )
+
+    all_messages = []
+    for ep in all_params:
+        if ep not in params:
+            raise RuntimeError(
+                f"Expected parameter '{ep}' to be defined in the parameters, but it was not found."
+            )
+        all_messages.extend(params[ep])
+
+    # If there is other text other than variables, throw an error to let them know other text
+    # is not allowed in the chat_history role
+    remaining_text = content
+    for ep in all_params:
+        remaining_text = remaining_text.replace(f"{{{ep}}}", "", 1)
+    remaining_text = remaining_text.strip()
+    if remaining_text:
+        raise RuntimeError("Only variables are allowed in the chat_history role.")
+
+    return all_messages
