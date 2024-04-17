@@ -1,3 +1,4 @@
+import pytest
 from libretto_openai.template import TemplateChat, TemplateString
 
 
@@ -51,3 +52,32 @@ def test_template_chat_with_chat_history():
 
     expected_result = "[{'role': 'system', 'content': 'My role is to be the AI Coach Supervisor'}, {'role': 'user', 'content': 'First User message'}, {'role': 'assistant', 'content': 'First response from OpenAI'}, {'role': 'user', 'content': 'Second User message'}, {'role': 'assistant', 'content': 'Second response from OpenAI'}, {'role': 'user', 'content': 'Why are you always late to meetings?'}]"
     assert str(template) == expected_result
+
+
+def test_template_chat_with_chat_history_raises():
+    messages = [
+        {
+            "role": "system",
+            "content": "My role is to be the AI Coach Supervisor",
+        },
+        {
+            "role": "chat_history",
+            "content": "Previous messages: {prev_history}",
+        },
+        {
+            "role": "user",
+            "content": "{coach_question}",
+        },
+    ]
+
+    with pytest.raises(RuntimeError):
+        TemplateChat(
+            messages,
+            {
+                "prev_messages": [
+                    {"role": "user", "content": "First User message"},
+                    {"role": "assistant", "content": "First response from OpenAI"},
+                ],
+                "coach_question": "Why are you always late to meetings?",
+            },
+        )

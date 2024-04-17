@@ -85,4 +85,13 @@ def expand_chat_history(item, params: Dict[str, Any]):
             )
         all_messages.extend(params[ep])
 
+    # If there is other text other than variables, throw an error to let them know other text
+    # is not allowed in the chat_history role
+    remaining_text = content
+    for ep in all_params:
+        remaining_text = remaining_text.replace(f"{{{ep}}}", "", 1)
+    remaining_text = remaining_text.strip()
+    if remaining_text:
+        raise RuntimeError("Only variables are allowed in the chat_history role.")
+
     return all_messages
