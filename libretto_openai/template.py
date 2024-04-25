@@ -2,7 +2,7 @@ import re
 from typing import Any, Dict
 
 # We only support the simplest of template expressions
-TEMPLATE_EXPRESSION_VAR_NAME = r"{([a-zA-Z0-9_[\].]+)}"
+TEMPLATE_EXPRESSION_VAR_NAME = re.compile(r"{([a-zA-Z0-9_[\].]+)}")
 
 ROLE = "role"
 CONTENT = "content"
