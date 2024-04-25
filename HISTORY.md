@@ -1,5 +1,9 @@
 ======= History =======
 
+## 1.0.4 (2024-04-25)
+
+- Improved variable detection when a template has curly braces.
+
 ## 1.0.3 (2024-04-17)
 
 - Support Libretto's chat_history role in `TemplateChat`
