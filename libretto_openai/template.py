@@ -1,7 +1,9 @@
 import re
 from typing import Any, Dict
 
-EXTRACT_PARAM_RE = r"\{(.+?)\}"
+# We only support the simplest of template expressions
+TEMPLATE_EXPRESSION_VAR_NAME = re.compile(r"{([a-zA-Z0-9_[\].]+)}")
+
 ROLE = "role"
 CONTENT = "content"
 CHAT_HISTORY = "chat_history"
@@ -14,7 +16,13 @@ class TemplateString(str):
     params: Dict[str, Any]
 
     def __new__(cls, template: str, params: dict):
-        s = template.format_map(params)
+        def replacer(match):
+            var_name = match.group(1)
+            if var_name not in params:
+                raise Exception(f"Can't format template, missing variable: {var_name}")
+            return params[var_name]
+
+        s = re.sub(TEMPLATE_EXPRESSION_VAR_NAME, replacer, template)
         instance = super().__new__(cls, s)
         instance.template = template
         instance.params = params
@@ -71,7 +79,7 @@ def expand_chat_history(item, params: Dict[str, Any]):
         raise RuntimeError("Expected content for the 'chat_history' role but none was found.")
 
     # Extract the parameter names since we can have more than that
-    all_params = re.findall(EXTRACT_PARAM_RE, content)
+    all_params = re.findall(TEMPLATE_EXPRESSION_VAR_NAME, content)
     if not all_params:
         raise RuntimeError(
             "Expected at least one parameter in the 'chat_history' role but none was found."

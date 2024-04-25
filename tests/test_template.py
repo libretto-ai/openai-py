@@ -3,19 +3,51 @@ from libretto_openai.template import TemplateChat, TemplateString
 
 
 def test_template_string():
-    template = TemplateString("Hello {name}", {"name": "John"})
-    assert template.template == "Hello {name}"
-    assert template.params == {"name": "John"}
-    assert template == "Hello John"
-    assert str(template) == "Hello John"
+    cases = [
+        ("Hello {name}", {"name": "John"}, "Hello John"),
+        (
+            'Question: {question}\nAnswer: {"is_valid_question": false}',
+            {"question": "How are you?"},
+            'Question: How are you?\nAnswer: {"is_valid_question": false}',
+        ),
+    ]
+    for template, params, want in cases:
+        t = TemplateString(template, params)
+        assert t.template == template
+        assert t.params == params
+        assert t == want
+        assert str(t) == want
 
 
 def test_template_chat():
-    template = TemplateChat([{"role": "system", "content": "Hello {name}"}], {"name": "John"})
-    assert template.template == [{"role": "system", "content": "Hello {name}"}]
-    assert template.params == {"name": "John"}
-    assert template == [{"role": "system", "content": "Hello John"}]
-    assert str(template) == "[{'role': 'system', 'content': 'Hello John'}]"
+    cases = [
+        (
+            [{"role": "system", "content": "Hello {name}"}],
+            {"name": "John"},
+            [{"role": "system", "content": "Hello John"}],
+        ),
+        (
+            [
+                {
+                    "role": "system",
+                    "content": 'Question: {question}\nAnswer: {"is_valid_question": false}',
+                }
+            ],
+            {"question": "How are you?"},
+            [
+                {
+                    "role": "system",
+                    "content": 'Question: How are you?\nAnswer: {"is_valid_question": false}',
+                }
+            ],
+        ),
+    ]
+    for template, params, want in cases:
+        t = TemplateChat(template, params)
+        assert t.template == template
+        assert t.params == params
+        assert t == want
+        assert str(t) == str(want)
 
 
 def test_template_chat_with_chat_history():
