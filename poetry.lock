@@ -1386,12 +1386,12 @@ murmurhash = ">=0.28.0,<1.1.0"
 
 [[package]]
 name = "presidio-analyzer"
-version = "2.2.351"
-description = "Presidio analyzer package"
+version = "2.2.355"
+description = "Presidio Analyzer package"
 optional = false
-python-versions = "*"
+python-versions = "<4.0,>=3.8"
 files = [
-    {file = "presidio_analyzer-2.2.351-py3-none-any.whl", hash = "sha256:9e4144ca4a809b084acf273d7e9615182f50e2bd6c195fe83d585fd24b507876"},
+    {file = "presidio_analyzer-2.2.355-py3-none-any.whl", hash = "sha256:c4c5bc6d82e4f94059fd554c31365fc5d29afe51763391b6ecc33b628bdb5858"},
 ]
 
 [package.dependencies]
@@ -1402,8 +1402,10 @@ spacy = ">=3.4.4,<4.0.0"
 tldextract = "*"
 
 [package.extras]
-stanza = ["spacy-stanza", "stanza"]
-transformers = ["spacy-huggingface-pipelines"]
+azure-ai-language = ["azure-ai-textanalytics", "azure-core"]
+server = ["flask (>=1.1)"]
+stanza = ["spacy_stanza", "stanza"]
+transformers = ["spacy_huggingface_pipelines"]
 
 [[package]]
 name = "presidio-anonymizer"
