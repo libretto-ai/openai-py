@@ -209,6 +209,25 @@ tests = ["attrs[tests-no-zope]", "zope-interface"]
 tests-no-zope = ["cloudpickle", "hypothesis", "mypy (>=1.1.1)", "pympler", "pytest (>=4.3.0)", "pytest-mypy-plugins", "pytest-xdist[psutil]"]
 
 [[package]]
+name = "azure-core"
+version = "1.30.2"
+description = "Microsoft Azure Core Library for Python"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "azure-core-1.30.2.tar.gz", hash = "sha256:a14dc210efcd608821aa472d9fb8e8d035d29b68993819147bc290a8ac224472"},
+    {file = "azure_core-1.30.2-py3-none-any.whl", hash = "sha256:cf019c1ca832e96274ae85abd3d9f752397194d9fea3b41487290562ac8abe4a"},
+]
+
+[package.dependencies]
+requests = ">=2.21.0"
+six = ">=1.11.0"
+typing-extensions = ">=4.6.0"
+
+[package.extras]
+aio = ["aiohttp (>=3.0)"]
+
+[[package]]
 name = "babel"
 version = "2.13.1"
 description = "Internationalization utilities"
@@ -1407,16 +1426,20 @@ transformers = ["spacy-huggingface-pipelines"]
 
 [[package]]
 name = "presidio-anonymizer"
-version = "2.2.352"
-description = "Persidio Anonymizer package - replaces analyzed text with desired values."
+version = "2.2.355"
+description = "Presidio Anonymizer package - replaces analyzed text with desired values."
 optional = false
-python-versions = ">=3.5"
+python-versions = "<4.0,>=3.8"
 files = [
-    {file = "presidio_anonymizer-2.2.352-py3-none-any.whl", hash = "sha256:e09df86d4aeb2dfd2428e3c27a6f17fa5655de813ac164d7c2bbf3dd2d905f72"},
+    {file = "presidio_anonymizer-2.2.355-py3-none-any.whl", hash = "sha256:c85f5f155fcb66aff8e962fcf3984552a5512ab34bb1a433b1a52193e635c23f"},
 ]
 
 [package.dependencies]
+azure-core = "*"
 pycryptodome = ">=3.10.1"
+
+[package.extras]
+server = ["flask (>=1.1)"]
 
 [[package]]
 name = "pycodestyle"
