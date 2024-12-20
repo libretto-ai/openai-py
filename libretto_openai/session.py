@@ -1,4 +1,5 @@
 """Utilities for sending events to Libretto."""
+
 import logging
 import os
 import time
@@ -42,7 +43,7 @@ async def send_event(
     response: str | None = None,
     response_time: float | None = None,
     prompt: Any | None = None,
-    parent_event_id: str | None = None,
+    chain_id: str | None = None,
     model_params: Dict | None = None,
     feedback_key: str | None = None,
     tools: Any | None = None,
@@ -96,8 +97,8 @@ async def send_event(
         event["responseTime"] = response_time
     if chat_id is not None:
         event["chatId"] = chat_id
-    if parent_event_id is not None:
-        event["parentEventId"] = str(parent_event_id)
+    if chain_id is not None:
+        event["chainId"] = chain_id
     if tools is not None:
         event["tools"] = tools
 
@@ -119,7 +120,7 @@ def event_session(
     chat_id: str | None = None,
     prompt_template_params: dict | None = None,
     prompt_event_id: str | None = None,
-    parent_event_id: str | None = None,
+    chain_id: str | None = None,
     feedback_key: str | None = None,
     tools: Any | None = None,
 ):
@@ -153,7 +154,7 @@ def event_session(
             prompt_template_chat=prompt_template_chat,
             prompt_params=prompt_template_params,
             chat_id=chat_id,
-            parent_event_id=parent_event_id,
+            chain_id=chain_id,
             model_params=model_params,
             response=response,
             response_time=response_time,
@@ -177,7 +178,7 @@ def send_event_background(
     response: str | None = None,
     response_time: float | None = None,
     prompt: Any | None = None,
-    parent_event_id: str | None = None,
+    chain_id: str | None = None,
     model_params: Dict | None = None,
     feedback_key: str | None = None,
     tools: Any | None = None,
@@ -198,7 +199,7 @@ def send_event_background(
             response=response,
             response_time=response_time,
             prompt=prompt,
-            parent_event_id=parent_event_id,
+            chain_id=chain_id,
             model_params=model_params,
             feedback_key=feedback_key,
             tools=tools,
