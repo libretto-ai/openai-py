@@ -57,7 +57,7 @@ class LibrettoCompletionsBaseMixin:
             chat_id=libretto["chat_id"],
             prompt_template_params=libretto["template_params"],
             prompt_event_id=libretto["event_id"],
-            parent_event_id=libretto["parent_event_id"],
+            chain_id=libretto["chain_id"] or libretto["parent_event_id"],
             feedback_key=libretto["feedback_key"],
             tools=tools,
         ) as complete_event:
@@ -146,21 +146,18 @@ class LibrettoCompletionsBaseMixin:
     @overload
     def _get_result(
         self, response: ChatCompletion | Iterable[ChatCompletionChunk]
-    ) -> Tuple[ChatCompletion | Iterable[ChatCompletionChunk], str]:
-        ...
+    ) -> Tuple[ChatCompletion | Iterable[ChatCompletionChunk], str]: ...
 
     @overload
     def _get_result(
         self, response: Completion | Iterable[Completion]
-    ) -> Tuple[Completion | Iterable[Completion], str]:
-        ...
+    ) -> Tuple[Completion | Iterable[Completion], str]: ...
 
     def _get_result(
         self,
-        response: Completion
-        | Iterable[Completion]
-        | ChatCompletion
-        | Iterable[ChatCompletionChunk],
+        response: (
+            Completion | Iterable[Completion] | ChatCompletion | Iterable[ChatCompletionChunk]
+        ),
     ) -> Tuple[
         Completion | Iterable[Completion] | ChatCompletion | Iterable[ChatCompletionChunk], str
     ]:

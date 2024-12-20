@@ -19,8 +19,9 @@ class LibrettoCreateParamDict(TypedDict):
     template_chat: List | None
     template_params: Any | None
     chat_id: str | None
-    parent_event_id: str | None
+    chain_id: str | None
     feedback_key: str | None
+    parent_event_id: str | None  # Deprecated: Use chain_id instead
 
 
 # This is a helper function that allows for instantiating a LibrettoCreateParamDict
@@ -36,8 +37,9 @@ def LibrettoCreateParams(  # pylint: disable=invalid-name
     template_chat: List | None = None,
     template_params: Any | None = None,
     chat_id: str | None = None,
-    parent_event_id: str | None = None,
+    chain_id: str | None = None,
     feedback_key: str | None = None,
+    parent_event_id: str | None = None,  # Deprecated: Use chain_id instead
 ):
     return LibrettoCreateParamDict(
         project_key=project_key,
@@ -49,6 +51,7 @@ def LibrettoCreateParams(  # pylint: disable=invalid-name
         template_chat=template_chat,
         template_params=template_params,
         chat_id=chat_id,
-        parent_event_id=parent_event_id,
+        chain_id=chain_id,
         feedback_key=feedback_key,
+        parent_event_id=parent_event_id,
     )

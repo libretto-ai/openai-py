@@ -197,7 +197,9 @@ When calling `create()`, a `libretto` argument should be provided to give Libret
   )
   ```
 
-- `parent_event_id`: The UUID of the parent event. All calls with the same parent id are grouped as a "Run Group".
+- `chain_id`: A UUID that groups related events together in a chain. For example,
+  if you have a multi-step workflow where one LLM call's output feeds into another
+  LLM call, you can use the same chainId to track the full sequence of events.
 
   For example:
 
@@ -205,11 +207,12 @@ When calling `create()`, a `libretto` argument should be provided to give Libret
   import uuid
 
   parent_id = uuid.uuid4()
+
   # First call in the run group
   completion = client.completions.create(
       ...,
       libretto=LibrettoCreateParams(
-          parent_event_id=parent_id,
+          chain_id=parent_id,
       ),
   )
 
@@ -217,7 +220,7 @@ When calling `create()`, a `libretto` argument should be provided to give Libret
   completion = client.completions.create(
       ...,
       libretto=LibrettoCreateParams(
-          parent_event_id=parent_id,
+          chain_id=parent_id,
       ),
   )
   ```

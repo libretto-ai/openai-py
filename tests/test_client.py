@@ -36,7 +36,7 @@ def test_chat_completion(mock_send_event: MagicMock):
     api_key = "alecf-local-playground"
     prompt_template_name = "test-from-apitest-chat"
     event_id = str(uuid.uuid4())
-    parent_event_id = str(uuid.uuid4())
+    chain_id = str(uuid.uuid4())
     chat_id = str(uuid.uuid4())
     client.chat.completions.create(
         model="gpt-3.5-turbo",
@@ -49,7 +49,7 @@ def test_chat_completion(mock_send_event: MagicMock):
             prompt_template_name=prompt_template_name,
             template_chat=chat_template,
             template_params=template_params,
-            parent_event_id=parent_event_id,
+            chain_id=chain_id,
             event_id=event_id,
             chat_id=chat_id,
         ),
@@ -69,7 +69,7 @@ def test_chat_completion(mock_send_event: MagicMock):
             ],
             prompt_params=template_params,
             chat_id=chat_id,
-            parent_event_id=parent_event_id,
+            chain_id=chain_id,
             model_params={
                 "model": "gpt-3.5-turbo",
                 "modelProvider": "openai",
