@@ -65,7 +65,7 @@ class Client(openai.Client):
     ):
         api_key = api_key or self.config.api_key
         if not api_key:
-            logger.warning("Unable to send feedback to Libretto: missing api_key")
+            logger.warning("Unable to update chain in Libretto: missing api_key")
             return
 
         update_chain_background(
