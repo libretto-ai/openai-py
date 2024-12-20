@@ -5,7 +5,7 @@ import openai
 from openai import resources
 
 from .completions import LibrettoCompletions, LibrettoChatCompletions
-from .session import send_feedback_background
+from .session import send_feedback_background, update_chain_background
 from .types import LibrettoConfig
 
 
@@ -54,4 +54,22 @@ class Client(openai.Client):
             api_key=api_key,
             better_response=better_response,
             rating=rating,
+        )
+
+    def update_chain(
+        self,
+        *,
+        chain_id: str,
+        api_key: str | None = None,
+        result: str | None = None,
+    ):
+        api_key = api_key or self.config.api_key
+        if not api_key:
+            logger.warning("Unable to send feedback to Libretto: missing api_key")
+            return
+
+        update_chain_background(
+            chain_id=chain_id,
+            api_key=api_key,
+            result=result,
         )

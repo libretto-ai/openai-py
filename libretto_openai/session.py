@@ -244,3 +244,39 @@ async def send_feedback(
     if result.status > 299:
         logger.debug("Feedback response: %s for %s: %s", result.status, feedback_key, json)
     return json
+
+
+def update_chain_background(
+    *,
+    chain_id: str,
+    api_key: str,
+    result: str | None = None,
+):
+    with ensure_background_thread() as call_in_background:
+        call_in_background(
+            update_chain,
+            chain_id=chain_id,
+            api_key=api_key,
+            result=result,
+        )
+
+
+async def update_chain(
+    session: aiohttp.ClientSession,
+    *,
+    chain_id: str,
+    api_key: str,
+    result: str | None = None,
+):
+    url = get_url("v1/updateChain", "LIBRETTO_UPDATE_CHAIN_URL")
+    body = {
+        "id": chain_id,
+        "apiKey": api_key,
+    }
+    if result is not None:
+        body["result"] = result
+    resp = await session.post(url, json=body)
+    json: SendEventResponse = await resp.json()
+    if resp.status > 299:
+        logger.debug("updateChain response: %s for %s: %s", resp.status, id, json)
+    return json
