@@ -1,5 +1,10 @@
 ======= History =======
 
+## 1.1.0 (2024-12-20)
+
+- Introduce chain_id and ability to update a chain.
+- Deprecate parent_event_id
+
 ## 1.0.4 (2024-04-25)
 
 - Improved variable detection when a template has curly braces.
