@@ -1,5 +1,9 @@
 ======= History =======
 
+## 1.1.1 (2025-02-10)
+
+- Fix CVE-2024-9287 - A vulnerability has been found in the CPython venv module
+
 ## 1.1.0 (2024-12-20)
 
 - Introduce chain_id and ability to update a chain.
