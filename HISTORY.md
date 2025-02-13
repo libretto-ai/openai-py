@@ -1,5 +1,11 @@
 ======= History =======
 
+## 1.1.2 (2025-02-10)
+
+- Fixes vulnerability in jinja package
+- Multiple package updates
+- Required PII package version adjustments
+
 ## 1.1.1 (2025-02-10)
 
 - Fix CVE-2024-9287 - A vulnerability has been found in the CPython venv module
