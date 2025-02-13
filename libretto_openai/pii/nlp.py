@@ -34,3 +34,5 @@ class NoopNlpEngine(NlpEngine):
 
     def get_supported_entities(self) -> List[str]:
         return []
+    def get_supported_languages(self) -> List[str]:
+        return ["en"]
