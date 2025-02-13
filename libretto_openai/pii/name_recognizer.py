@@ -26,7 +26,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-import importlib.resources
+from importlib.resources import files
 import json
 import re
 
@@ -62,7 +62,7 @@ class NameRecognizer(LocalRecognizer):
 
         # Lazy load names.json to construct regex
         if not NameRecognizer._well_known_names_regex:
-            with importlib.resources.open_text("libretto_openai.pii.data", "names.json") as f:
+            with files("libretto_openai.pii.data").joinpath("names.json").open('r') as f:
                 names = json.load(f)
                 NameRecognizer._well_known_names_regex = re.compile(
                     r"\b(\s*)(\s*(" + "|".join(names) + r"))+\b", re.I | re.M
