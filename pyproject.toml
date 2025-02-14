@@ -9,7 +9,7 @@ profile = "black"
 
 [tool.poetry]
 name = "libretto-openai"
-version = "1.1.1"
+version = "1.1.2"
 description = "Wrapper library for openai to send events to Libretto"
 authors = ["Alec Flett <alecf@thegp.com>"]
 license = "MIT"
