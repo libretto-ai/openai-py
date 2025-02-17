@@ -30,7 +30,7 @@ black = ">=23.7,<26.0"
 flake8 = ">=6.1,<8.0"
 faiss-cpu = "^1.7.4"
 Sphinx = ">=7.2.2,<9.0.0"
-tiktoken = ">=0.4,<0.9"
+tiktoken = ">=0.4,<0.10"
 pylint = "^3.0.1"
 
 [build-system]
