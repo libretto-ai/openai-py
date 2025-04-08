@@ -6,6 +6,7 @@ import time
 import uuid
 from contextlib import contextmanager
 from typing import Any, Dict, List, TypedDict
+from openai.types.chat import ChatCompletion
 
 import aiohttp
 
@@ -47,6 +48,8 @@ async def send_event(
     model_params: Dict | None = None,
     feedback_key: str | None = None,
     tools: Any | None = None,
+    tool_calls: Any | None = None,
+    raw_response: Any | None = None,
 ) -> SendEventResponse | None:
     """Send an event to Libretto. Returns the id of the event that was added on the server."""
     reporting_url = get_url("event", "LIBRETTO_REPORTING_URL")
@@ -101,12 +104,21 @@ async def send_event(
         event["chainId"] = chain_id
     if tools is not None:
         event["tools"] = tools
+    if tool_calls is not None:
+        # model_dump each element in the list
+        event["toolCalls"] = [c.model_dump() for c in tool_calls]
+    if raw_response is not None:
+        # Only add this for non streaming ones for now
+        if isinstance(raw_response, ChatCompletion):
+            event["rawResponse"] = raw_response.model_dump()
 
     result = await session.post(reporting_url, json=event)
-    json: SendEventResponse = await result.json()
+    json_result: SendEventResponse = await result.json()
     if result.status > 299:
-        logger.debug("Event response: %s for %s: %s", result.status, prompt_template_name, json)
-    return json
+        logger.debug(
+            "Event response: %s for %s: %s", result.status, prompt_template_name, json_result
+        )
+    return json_result
 
 
 @contextmanager
@@ -143,7 +155,7 @@ def event_session(
     if prompt_event_id is None:
         prompt_event_id = str(uuid.uuid4())
 
-    def complete_event(response):
+    def complete_event(raw_response: Any, response: str, tool_calls: Any = None):
         response_time = (time.time() - start) * 1000
         send_event_background(
             project_key=project_key,
@@ -160,6 +172,8 @@ def event_session(
             response_time=response_time,
             feedback_key=feedback_key,
             tools=tools,
+            tool_calls=tool_calls,
+            raw_response=raw_response,
         )
 
     yield complete_event
@@ -182,6 +196,8 @@ def send_event_background(
     model_params: Dict | None = None,
     feedback_key: str | None = None,
     tools: Any | None = None,
+    tool_calls: Any | None = None,
+    raw_response: Any | None = None,
 ):
     """Send an event on a background thread"""
 
@@ -203,6 +219,8 @@ def send_event_background(
             model_params=model_params,
             feedback_key=feedback_key,
             tools=tools,
+            tool_calls=tool_calls,
+            raw_response=raw_response,
         )
 
 

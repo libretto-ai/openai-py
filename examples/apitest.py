@@ -29,7 +29,7 @@ def main():
 
     print("TESTING CHAT COMPLETION API")
     chat_completion = client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="gpt-4o-mini",
         messages=TemplateChat(
             [{"role": "user", "content": template}],
             params,
@@ -54,7 +54,7 @@ def main():
 
     print("TESTING CHAT STREAMING API")
     chat_completion_chunks = client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="gpt-4o-mini",
         messages=TemplateChat(
             [{"role": "user", "content": template}],
             params,

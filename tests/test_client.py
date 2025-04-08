@@ -39,7 +39,7 @@ def test_chat_completion(mock_send_event: MagicMock):
     chain_id = str(uuid.uuid4())
     chat_id = str(uuid.uuid4())
     client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="gpt-4o-mini",
         messages=[
             {"role": "user", "content": prompt_text},
         ],
@@ -71,7 +71,7 @@ def test_chat_completion(mock_send_event: MagicMock):
             chat_id=chat_id,
             chain_id=chain_id,
             model_params={
-                "model": "gpt-3.5-turbo",
+                "model": "gpt-4o-mini",
                 "modelProvider": "openai",
                 "modelType": "chat",
                 "temperature": 0.4,
@@ -129,7 +129,7 @@ def test_chat_completion_redact_pii(
         id="chatcmpl-123",
         object="chat.completion",
         created=1677652288,
-        model="gpt-3.5-turbo-0613",
+        model="gpt-4o-mini",
         choices=[
             Choice(
                 index=0,
@@ -149,7 +149,7 @@ def test_chat_completion_redact_pii(
 
     client.chat.completions.create(
         # Standard OpenAI parameters
-        model="gpt-3.5-turbo",
+        model="gpt-4o-mini",
         messages=TemplateChat(
             [
                 {"role": "user", "content": "Send a greeting to our new user named {name}"},
