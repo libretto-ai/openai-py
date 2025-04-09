@@ -28,7 +28,7 @@ def main():
 
     print("TESTING CHAT COMPLETION API w/ TOOLS")
     chat_completion = client.chat.completions.create(
-        model="gpt-3.5-turbo-1106",
+        model="gpt-4o-mini",
         messages=TemplateChat(
             [{"role": "user", "content": template}],
             params,

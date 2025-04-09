@@ -45,7 +45,7 @@ client = Client(
 
 completion = client.chat.completions.create(
     # Standard OpenAI parameters
-    model="gpt-3.5-turbo",
+    model="gpt-4o-mini",
     messages=TemplateChat(
         [{"role": "user", "content": "Show me an emoji that matches the sport: {sport}"}],
         {"sport": "soccer"},
@@ -94,7 +94,7 @@ While the use of `TemplateText` and `TemplateChat` are preferred, you can option
 
 ```python
 completion = openai.ChatCompletion.create(
-    model="gpt-3.5-turbo",
+    model="gpt-4o-mini",
 
     # Note we are passing the raw messages object here
     messages=[{"role": "user", "content": "Show me an emoji that matches the sport: soccer"}],

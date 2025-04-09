@@ -1,9 +1,10 @@
 import threading
+from typing import List
 import uuid
 from unittest.mock import ANY, MagicMock, patch
 
 from openai.types import CompletionUsage
-from openai.types.chat import ChatCompletion, ChatCompletionMessage
+from openai.types.chat import ChatCompletion, ChatCompletionMessage, ChatCompletionToolParam
 from openai.types.chat.chat_completion import Choice
 import pytest
 
@@ -39,7 +40,7 @@ def test_chat_completion(mock_send_event: MagicMock):
     chain_id = str(uuid.uuid4())
     chat_id = str(uuid.uuid4())
     client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="gpt-4o-mini",
         messages=[
             {"role": "user", "content": prompt_text},
         ],
@@ -71,7 +72,7 @@ def test_chat_completion(mock_send_event: MagicMock):
             chat_id=chat_id,
             chain_id=chain_id,
             model_params={
-                "model": "gpt-3.5-turbo",
+                "model": "gpt-4o-mini",
                 "modelProvider": "openai",
                 "modelType": "chat",
                 "temperature": 0.4,
@@ -80,6 +81,91 @@ def test_chat_completion(mock_send_event: MagicMock):
             response_time=ANY,
             feedback_key=ANY,
             tools=None,
+            tool_calls=None,
+            raw_response=ANY,
+        ),
+    )
+
+
+def test_chat_completion_with_tools(mock_send_event: MagicMock):
+    client = Client(api_key="test")
+    client.chat.completions._original_create = MagicMock()
+
+    template = "Send a greeting to our new user named {name}"
+    template_params = {"name": "Alec"}
+    prompt_text = template.format(**template_params)
+    tools: List[ChatCompletionToolParam] = [
+        {
+            "type": "function",
+            "function": {
+                "name": "get_current_weather",
+                "description": "Get the current weather in a given location",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "location": {
+                            "type": "string",
+                            "description": "The city and state, e.g. San Francisco, CA",
+                        },
+                        "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]},
+                    },
+                    "required": ["location"],
+                },
+            },
+        }
+    ]
+
+    chat_template = [{"role": "user", "content": template}]
+    api_key = "alecf-local-playground"
+    prompt_template_name = "test-from-apitest-chat"
+    event_id = str(uuid.uuid4())
+    chain_id = str(uuid.uuid4())
+    chat_id = str(uuid.uuid4())
+    client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "user", "content": prompt_text},
+        ],
+        temperature=0.4,
+        tools=tools,
+        libretto=LibrettoCreateParams(
+            api_key=api_key,
+            prompt_template_name=prompt_template_name,
+            template_chat=chat_template,
+            template_params=template_params,
+            chain_id=chain_id,
+            event_id=event_id,
+            chat_id=chat_id,
+        ),
+    )
+    mock_send_event.send_event_called.wait(1)
+    assert tuple(mock_send_event.call_args_list[0]) == (
+        (ANY),  # session
+        dict(
+            api_key=api_key,
+            prompt_template_name="test-from-apitest-chat",
+            project_key=None,
+            prompt=None,
+            prompt_event_id=event_id,
+            prompt_template_text=None,
+            prompt_template_chat=[
+                {"role": "user", "content": "Send a greeting to our new user named {name}"}
+            ],
+            prompt_params=template_params,
+            chat_id=chat_id,
+            chain_id=chain_id,
+            model_params={
+                "model": "gpt-4o-mini",
+                "modelProvider": "openai",
+                "modelType": "chat",
+                "temperature": 0.4,
+            },
+            response=ANY,
+            response_time=ANY,
+            feedback_key=ANY,
+            tools=tools,
+            tool_calls=None,
+            raw_response=ANY,
         ),
     )
 
@@ -129,7 +215,7 @@ def test_chat_completion_redact_pii(
         id="chatcmpl-123",
         object="chat.completion",
         created=1677652288,
-        model="gpt-3.5-turbo-0613",
+        model="gpt-4o-mini",
         choices=[
             Choice(
                 index=0,
@@ -149,7 +235,7 @@ def test_chat_completion_redact_pii(
 
     client.chat.completions.create(
         # Standard OpenAI parameters
-        model="gpt-3.5-turbo",
+        model="gpt-4o-mini",
         messages=TemplateChat(
             [
                 {"role": "user", "content": "Send a greeting to our new user named {name}"},

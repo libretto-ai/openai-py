@@ -1,5 +1,4 @@
 from itertools import tee
-import json
 import logging
 import os
 import uuid
@@ -8,11 +7,6 @@ from typing import Any, Dict, Iterable, Tuple, cast, overload
 
 from openai._types import NotGiven
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
-from openai.types.chat.chat_completion_message import FunctionCall
-from openai.types.chat.chat_completion_message_tool_call import (
-    Function,
-    ChatCompletionMessageToolCall,
-)
 from openai.types.completion import Completion
 
 from .pii import Redactor
@@ -61,8 +55,8 @@ class LibrettoCompletionsBaseMixin:
             feedback_key=libretto["feedback_key"],
             tools=tools,
         ) as complete_event:
-            response = self._original_create(**original_kwargs)
-            return_response, event_response = self._get_result(response)
+            raw_response = self._original_create(**original_kwargs)
+            return_response, event_response, tool_calls = self._get_result(raw_response)
 
             # Can only do this for non-streamed responses right now
             if hasattr(return_response, "model_copy"):
@@ -73,7 +67,7 @@ class LibrettoCompletionsBaseMixin:
             # Redact PII before recording the event
             event_response = self._redact_response(event_response)
 
-            complete_event(event_response)
+            complete_event(return_response, event_response, tool_calls)
 
             return return_response
 
@@ -145,21 +139,23 @@ class LibrettoCompletionsBaseMixin:
 
     @overload
     def _get_result(
-        self, response: ChatCompletion | Iterable[ChatCompletionChunk]
-    ) -> Tuple[ChatCompletion | Iterable[ChatCompletionChunk], str]: ...
+        self, raw_response: ChatCompletion | Iterable[ChatCompletionChunk]
+    ) -> Tuple[ChatCompletion | Iterable[ChatCompletionChunk], str, Any | None]: ...
 
     @overload
     def _get_result(
-        self, response: Completion | Iterable[Completion]
-    ) -> Tuple[Completion | Iterable[Completion], str]: ...
+        self, raw_response: Completion | Iterable[Completion]
+    ) -> Tuple[Completion | Iterable[Completion], str, Any | None]: ...
 
     def _get_result(
         self,
-        response: (
+        raw_response: (
             Completion | Iterable[Completion] | ChatCompletion | Iterable[ChatCompletionChunk]
         ),
     ) -> Tuple[
-        Completion | Iterable[Completion] | ChatCompletion | Iterable[ChatCompletionChunk], str
+        Completion | Iterable[Completion] | ChatCompletion | Iterable[ChatCompletionChunk],
+        str,
+        Any | None,
     ]:
         raise NotImplementedError()
 
@@ -193,16 +189,16 @@ class LibrettoCompletionsMixin(LibrettoCompletionsBaseMixin):
         return model_params
 
     def _get_result(
-        self, response: Completion | Iterable[Completion]
-    ) -> Tuple[Completion | Iterable[Completion], str]:
-        if isinstance(response, Completion):
-            return response, response.choices[0].text
+        self, raw_response: Completion | Iterable[Completion]
+    ) -> Tuple[Completion | Iterable[Completion], str, Any | None]:
+        if isinstance(raw_response, Completion):
+            return raw_response, raw_response.choices[0].text, None
 
-        original, consumable = tee(response)
+        original, consumable = tee(raw_response)
         accumulated = []
         for response_chunk in consumable:
             accumulated.append(response_chunk.choices[0].text)
-        return (original, "".join(accumulated))
+        return (original, "".join(accumulated), None)
 
 
 class LibrettoChatCompletionsMixin(LibrettoCompletionsBaseMixin):
@@ -233,19 +229,27 @@ class LibrettoChatCompletionsMixin(LibrettoCompletionsBaseMixin):
         return model_params
 
     def _get_result(
-        self, response: ChatCompletion | Iterable[ChatCompletionChunk]
-    ) -> Tuple[ChatCompletion | Iterable[ChatCompletionChunk], str]:
-        if not isinstance(response, ChatCompletion):
-            return self._get_stream_result(response)
+        self, raw_response: ChatCompletion | Iterable[ChatCompletionChunk]
+    ) -> Tuple[ChatCompletion | Iterable[ChatCompletionChunk], str, Any | None]:
+        if not isinstance(raw_response, ChatCompletion):
+            return self._get_stream_result(raw_response) + (None,)
 
-        message = response.choices[0].message
+        message = raw_response.choices[0].message
+        message_content = message.content or ""
+        # Function call is deprecated
         if message.function_call:
-            return response, json.dumps({"function_call": message.function_call.model_dump()})
-        if message.tool_calls:
-            return response, json.dumps(
-                {"tool_calls": [c.model_dump() for c in message.tool_calls]}
+            return (
+                raw_response,
+                message_content,
+                message.function_call,
             )
-        return response, message.content or ""
+        if message.tool_calls:
+            return (
+                raw_response,
+                message_content,
+                message.tool_calls,
+            )
+        return raw_response, message_content, None
 
     def _get_stream_result(
         self, responses: Iterable[ChatCompletionChunk]
@@ -257,4 +261,6 @@ class LibrettoChatCompletionsMixin(LibrettoCompletionsBaseMixin):
                 accumulated.append(response.choices[0].delta.content)
             if response.choices[0].delta.function_call is not None:
                 logger.warning("Streaming a function_call response is not supported yet.")
+            if response.choices[0].delta.tool_calls is not None:
+                logger.warning("Streaming a tool_calls response is not supported yet.")
         return (original_response, "".join(accumulated))

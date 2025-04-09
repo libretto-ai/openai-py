@@ -25,7 +25,7 @@ def main():
 
     print("TESTING CHAT COMPLETION API w/ LIBRETTO CHAT_HISTORY")
     chat_completion = client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="gpt-4o-mini",
         messages=TemplateChat(
             [
                 {
