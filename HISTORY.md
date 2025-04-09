@@ -1,5 +1,10 @@
 ======= History =======
 
+## 1.1.3 (2025-04-09)
+
+- Upgrade the openai library to 1.71.0
+- Allow for the raw response and tool_calls to be sent in the Libretto event
+
 ## 1.1.2 (2025-02-10)
 
 - Fixes vulnerability in jinja package
